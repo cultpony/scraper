@@ -56,9 +56,7 @@ pub struct ScrapeResultError {
 
 impl From<String> for ScrapeResultError {
     fn from(f: String) -> Self {
-        Self{
-            errors: vec![f],
-        }
+        Self { errors: vec![f] }
     }
 }
 
@@ -306,7 +304,7 @@ mod test {
     }
 
     #[test]
-    fn test_deviantart_scraper() -> Result<()> { 
+    fn test_deviantart_scraper() -> Result<()> {
         crate::LOGGER.flush();
         let url = r#"https://www.deviantart.com/the-park/art/Comm-Baseball-cap-derpy-833396912"#;
         let config = Configuration::default();

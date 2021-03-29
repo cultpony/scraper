@@ -30,7 +30,7 @@ pub async fn raw_scrape(
     url: &Url,
     _db: &sled::Db,
 ) -> Result<Option<ScrapeResult>> {
-    Ok(Some(ScrapeResult::Ok(ScrapeResultData{
+    Ok(Some(ScrapeResult::Ok(ScrapeResultData {
         source_url: Some(super::from_url(url.clone())),
         author_name: None,
         description: None,

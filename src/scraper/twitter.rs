@@ -2,7 +2,7 @@ use std::{ops::Index, str::FromStr};
 
 use crate::scraper::ScrapeResult;
 use crate::scraper::ScrapeResultData;
-use crate::{scraper::ScrapeImage, Configuration, };
+use crate::{scraper::ScrapeImage, Configuration};
 use anyhow::{Context, Result};
 use futures_cache::{Cache, Duration};
 use log::trace;
@@ -179,7 +179,7 @@ pub async fn twitter_scrape(
     if images.len() == 0 {
         return Ok(None);
     }
-    Ok(Some(ScrapeResult::Ok(ScrapeResultData{
+    Ok(Some(ScrapeResult::Ok(ScrapeResultData {
         source_url: Some(super::from_url(url::Url::from_str(&url)?)),
         author_name: Some(user.to_owned()),
         description: tweet.index("text").as_str().map_or_else(
