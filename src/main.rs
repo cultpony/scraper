@@ -105,6 +105,8 @@ pub struct Configuration {
     camo_key: Option<String>,
     #[envconfig(from = "CAMO_HOST")]
     camo_host: Option<String>,
+    #[envconfig(from = "ENABLE_GET_REQUEST", default = "false")]
+    enable_get_request: bool,
 }
 
 #[derive(Clone)]
@@ -156,6 +158,7 @@ impl Default for Configuration {
             proxy_url: None,
             camo_host: None,
             camo_key: None,
+            enable_get_request: false,
         };
         trace!("created config: {:?}", s);
         s
@@ -210,7 +213,9 @@ async fn main_start() -> Result<()> {
     let mut app = tide::with_state(State::new(config.clone())?);
     app.with(RequestTimer());
     app.at("/images/scrape").post(scrape_post);
-    app.at("/images/scrape").get(scrape);
+    if config.enable_get_request {
+        app.at("/images/scrape").get(scrape);
+    }
     app.listen(config.bind_to).await?;
     Ok(())
 }

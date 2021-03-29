@@ -193,6 +193,8 @@ pub async fn scrape(
 
 #[cfg(test)]
 mod test {
+    use log::warn;
+
     use super::*;
     use std::str::FromStr;
 
@@ -274,6 +276,10 @@ mod test {
         crate::LOGGER.flush();
         let url = r#"https://tcn1205.tumblr.com/post/186904081532/in-wonderland"#;
         let config = Configuration::default();
+        if config.tumblr_api_key.is_none() {
+            warn!("Tumblr API key not configured, skipping");
+            return Ok(());
+        }
         let db = sled::Config::default().temporary(true).open()?;
         let scrape = tokio_test::block_on(scrape(&config, &db, url));
         let scrape = match scrape {
