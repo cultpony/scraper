@@ -203,7 +203,7 @@ async fn process_post_photo(
                                 }
                             }
                         }
-                        if valid_alt_sizes.len() == 0 {
+                        if valid_alt_sizes.is_empty() {
                             valid_alt_sizes.push(image.clone());
                         }
                         valid_alt_sizes.pop()
@@ -220,7 +220,7 @@ async fn process_post_photo(
                     .map(|(image, preview)| -> Result<ScrapeImage> {
                         Ok(ScrapeImage {
                             url: from_url(image.clone()),
-                            camo_url: from_url(camo_url(config, preview)?.clone()),
+                            camo_url: from_url(camo_url(config, preview)?),
                         })
                     })
                     .flatten()

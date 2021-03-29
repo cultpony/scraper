@@ -4,7 +4,7 @@ use anyhow::Result;
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
-use log::{trace, LevelFilter};
+use log::{LevelFilter, info, trace};
 use tide::Request;
 
 use crate::scraper::ScrapeResult;
@@ -122,8 +122,8 @@ impl State {
         Ok(Self {
             parsed_allowed_origins: config
                 .allowed_origins
-                .split(",")
-                .filter(|x| x.len() > 0)
+                .split(',')
+                .filter(|x| !x.is_empty())
                 .map(|x| x.to_string())
                 .collect(),
             db,
@@ -137,7 +137,7 @@ impl State {
                 allowed = true;
             }
         }
-        return allowed || self.parsed_allowed_origins.len() == 0;
+        allowed || self.parsed_allowed_origins.is_empty()
     }
 }
 
@@ -150,7 +150,7 @@ impl Default for Configuration {
                 .unwrap(),
             allowed_origins: "".to_string(),
             check_csrf_presence: false,
-            tumblr_api_key: std::env::var("TUMBLR_API_KEY").map_or(None, |x| Some(x)),
+            tumblr_api_key: std::env::var("TUMBLR_API_KEY").map_or(None, Some),
             sled_cache: "./sled".into(),
             cache_duration: 60,
             cache_http_duration: 60,
@@ -223,12 +223,8 @@ async fn main_start() -> Result<()> {
 lazy_static! {
     static ref LOGGER: LoggerHandle = {
         better_panic::install();
-        #[allow(unused_results, unused_must_use)]
-        {
-            match kankyo::load(false) {
-                Err(_) => (),
-                Ok(_) => (),
-            }
+        if let Err(e) = kankyo::load(false) {
+            info!("couldn't load .env file: {}, this is probably fine", e);
         }
         flexi_logger::Logger::with(
             flexi_logger::LogSpecification::default(LevelFilter::Warn)
