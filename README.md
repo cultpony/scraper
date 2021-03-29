@@ -1,5 +1,7 @@
 # scraper.rs
 
+A scraper intended for use with philomena. This tool presents a simple HTTP endpoint that returns URLs of image files belonging to a social media post.
+
 ## Compiling and Install
 
 Simply checkout scraper.rs, then clone camo-url into a side-folder (`../camo-url`)
