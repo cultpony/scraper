@@ -225,7 +225,10 @@ lazy_static! {
         better_panic::install();
         #[allow(unused_results, unused_must_use)]
         {
-            kankyo::load(false).unwrap();
+            match kankyo::load(false) {
+                Err(_) => (),
+                Ok(_) => (),
+            }
         }
         flexi_logger::Logger::with(
             flexi_logger::LogSpecification::default(LevelFilter::Warn)
