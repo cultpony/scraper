@@ -161,8 +161,10 @@ pub async fn twitter_scrape(
                 .map(|x| -> anyhow::Result<ScrapeImage> {
                     let url_orig = x.index("media_url_https").as_str().unwrap_or_default();
                     let url_noorig = url_orig.trim_end_matches(":orig");
-                    let url_orig = url::Url::from_str(url_orig).unwrap_or_else(|_| page_url.clone());
-                    let url_noorig = url::Url::from_str(url_noorig).unwrap_or_else(|_| page_url.clone());
+                    let url_orig =
+                        url::Url::from_str(url_orig).unwrap_or_else(|_| page_url.clone());
+                    let url_noorig =
+                        url::Url::from_str(url_noorig).unwrap_or_else(|_| page_url.clone());
                     let camo_url: anyhow::Result<Url> = crate::camo::camo_url(config, &url_orig);
                     let camo_url = camo_url?;
                     log::debug!("urls: {}, noorig: {}", url_orig, url_noorig);

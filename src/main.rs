@@ -4,7 +4,7 @@ use anyhow::Result;
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
-use log::{LevelFilter, info, trace};
+use log::{info, trace, LevelFilter};
 use tide::Request;
 
 use crate::scraper::ScrapeResult;
