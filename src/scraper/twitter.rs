@@ -85,7 +85,11 @@ pub async fn twitter_scrape(
     url: &Url,
     db: &sled::Db,
 ) -> Result<Option<ScrapeResult>> {
-    let reqwest_cache = Cache::load(db.open_tree("twitter_request_cache").context("twitter response cache unavailable")?).context("could not load twitter response cache")?;
+    let reqwest_cache = Cache::load(
+        db.open_tree("twitter_request_cache")
+            .context("twitter response cache unavailable")?,
+    )
+    .context("could not load twitter response cache")?;
     let client = crate::scraper::client(config).context("could not create twitter agent")?;
     let (user, status_id) = {
         let caps = URL_REGEX.captures(url.as_str());
@@ -129,7 +133,8 @@ pub async fn twitter_scrape(
                 Duration::seconds(config.cache_http_duration as i64),
                 get_script_data(&client, &script_caps),
             )
-            .await.context("invalid script_data response")?;
+            .await
+            .context("invalid script_data response")?;
         let bearer_caps = BEARER_REGEX.captures(&script_data);
         let bearer = match bearer_caps {
             Some(v) => v[0].to_string(),
@@ -182,7 +187,9 @@ pub async fn twitter_scrape(
         return Ok(None);
     }
     Ok(Some(ScrapeResult::Ok(ScrapeResultData {
-        source_url: Some(super::from_url(url::Url::from_str(&url).context("source is not valid URL")?)),
+        source_url: Some(super::from_url(
+            url::Url::from_str(&url).context("source is not valid URL")?,
+        )),
         author_name: Some(user.to_owned()),
         description: tweet.index("text").as_str().map_or_else(
             || tweet.index("full_text").as_str().map(|f| f.to_owned()),
