@@ -85,8 +85,8 @@ pub async fn twitter_scrape(
     url: &Url,
     db: &sled::Db,
 ) -> Result<Option<ScrapeResult>> {
-    let reqwest_cache = Cache::load(db.open_tree("twitter_request_cache")?)?;
-    let client = crate::scraper::client(config)?;
+    let reqwest_cache = Cache::load(db.open_tree("twitter_request_cache").context("twitter response cache unavailable")?).context("could not load twitter response cache")?;
+    let client = crate::scraper::client(config).context("could not create twitter agent")?;
     let (user, status_id) = {
         let caps = URL_REGEX.captures(url.as_str());
         let caps = match caps {
@@ -129,7 +129,7 @@ pub async fn twitter_scrape(
                 Duration::seconds(config.cache_http_duration as i64),
                 get_script_data(&client, &script_caps),
             )
-            .await?;
+            .await.context("invalid script_data response")?;
         let bearer_caps = BEARER_REGEX.captures(&script_data);
         let bearer = match bearer_caps {
             Some(v) => v[0].to_string(),
@@ -150,7 +150,7 @@ pub async fn twitter_scrape(
     let tweet = api_response.index_mut("globalObjects");
     let tweet = tweet.index_mut("tweets");
     let tweet = tweet.index_mut(status_id);
-    let page_url = url::Url::from_str(&page_url)?;
+    let page_url = url::Url::from_str(&page_url).context("page url is not valid from API")?;
     let images = {
         let tweet = tweet.clone();
         let media = tweet.index("entities").index("media").as_array();
@@ -166,7 +166,7 @@ pub async fn twitter_scrape(
                     let url_noorig =
                         url::Url::from_str(url_noorig).unwrap_or_else(|_| page_url.clone());
                     let camo_url: anyhow::Result<Url> = crate::camo::camo_url(config, &url_orig);
-                    let camo_url = camo_url?;
+                    let camo_url = camo_url.context("could not generate Camo url")?;
                     log::debug!("urls: {}, noorig: {}", url_orig, url_noorig);
                     Ok(ScrapeImage {
                         url: super::from_url(url_noorig),
@@ -182,7 +182,7 @@ pub async fn twitter_scrape(
         return Ok(None);
     }
     Ok(Some(ScrapeResult::Ok(ScrapeResultData {
-        source_url: Some(super::from_url(url::Url::from_str(&url)?)),
+        source_url: Some(super::from_url(url::Url::from_str(&url).context("source is not valid URL")?)),
         author_name: Some(user.to_owned()),
         description: tweet.index("text").as_str().map_or_else(
             || tweet.index("full_text").as_str().map(|f| f.to_owned()),

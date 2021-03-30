@@ -30,6 +30,7 @@ sled = "0.34"
 securefmt = "0.1.1"
 radix_fmt = "1.0.0"
 camo-url = "0.1.2"
+hex = "0.4.3"
 
 [dev-dependencies]
 tokio-test = "0.4"

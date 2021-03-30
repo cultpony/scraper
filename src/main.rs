@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use anyhow::Result;
+use camo_url::CamoConfig;
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;

@@ -2188,6 +2188,7 @@ dependencies = [
  "envconfig",
  "flexi_logger",
  "futures-cache",
+ "hex",
  "ipnet",
  "kankyo",
  "lazy_static",
