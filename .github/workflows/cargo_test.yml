@@ -47,6 +47,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+        env:
+          TUMBLR_API_KEY: ${{ secrets.TUMBLR_API_KEY }}
 
   lints:
     name: Lints
