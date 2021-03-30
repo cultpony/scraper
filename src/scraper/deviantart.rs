@@ -41,7 +41,9 @@ pub async fn deviantart_scrape(
         .await
         .context("image request failed")?;
     let body = resp.text().await.context("could not read response")?;
-    let extract_data = extract_data(config, &body).await?;
+    let extract_data = extract_data(config, &body)
+        .await
+        .context("could not extract DA page data")?;
 
     match extract_data {
         None => Ok(None),
@@ -53,8 +55,11 @@ pub async fn deviantart_scrape(
                     Some(v) => v,
                     None => anyhow::bail!("had no source url"),
                 };
-                let source_url = Url::parse(&crate::scraper::url_to_str(source_url))?;
-                let images = try_old_hires(config, source_url, images, &camo).await?;
+                let source_url = Url::parse(&crate::scraper::url_to_str(source_url))
+                    .context("source URL is not valid URL")?;
+                let images = try_old_hires(config, source_url, images, &camo)
+                    .await
+                    .context("old_hires conversion failed")?;
 
                 v.images = images;
 
@@ -84,17 +89,25 @@ async fn extract_data(config: &Configuration, body: &str) -> Result<Option<(Scra
     };
     trace!("deviant capture: {} {} {}", image, source, artist);
 
-    let camo = crate::camo::camo_url(config, &Url::parse(image)?)?;
+    let camo = crate::camo::camo_url(
+        config,
+        &Url::parse(image).context("could not parse image URL")?,
+    )
+    .context("could not camo URL")?;
 
     trace!("camo_url: {}", camo);
 
     Ok(Some((
         ScrapeResult::Ok(ScrapeResultData {
-            source_url: Some(crate::scraper::from_url(Url::parse(source)?)),
+            source_url: Some(crate::scraper::from_url(
+                Url::parse(source).context("source URL not valid URL")?,
+            )),
             author_name: Some(artist.to_string()),
             description: None,
             images: vec![ScrapeImage {
-                url: crate::scraper::from_url(Url::parse(image)?),
+                url: crate::scraper::from_url(
+                    Url::parse(image).context("image URL not valid URL")?,
+                ),
                 camo_url: crate::scraper::from_url(camo.clone()),
             }],
         }),
@@ -130,7 +143,14 @@ async fn try_intermediary_hires(
         );
         let built_url = Url::from_str(&built_url)?;
         let client = client(config)?;
-        if client.head(built_url.clone()).send().await?.status() == 200 {
+        if client
+            .head(built_url.clone())
+            .send()
+            .await
+            .context("HEAD request to DA URL failed")?
+            .status()
+            == 200
+        {
             let built_url = from_url(built_url);
             images.push(ScrapeImage {
                 url: built_url,
@@ -148,7 +168,7 @@ async fn try_new_hires(mut images: Vec<ScrapeImage>) -> Result<Vec<ScrapeImage>>
             let new_url = PNG_REGEX.replace(&old_url, |caps: &Captures| {
                 format!("{}.png{}", &caps[1], &caps[3])
             });
-            let new_url = Url::from_str(&new_url)?;
+            let new_url = Url::from_str(&new_url).context("could not parse png url")?;
             images.push(ScrapeImage {
                 url: from_url(new_url),
                 camo_url: image.camo_url.clone(),
@@ -158,7 +178,7 @@ async fn try_new_hires(mut images: Vec<ScrapeImage>) -> Result<Vec<ScrapeImage>>
             let new_url = JPG_REGEX.replace(&old_url, |caps: &Captures| {
                 format!("{}100{}", &caps[1], &caps[3])
             });
-            let new_url = Url::from_str(&new_url)?;
+            let new_url = Url::from_str(&new_url).context("could not parse jpeg url")?;
             images.push(ScrapeImage {
                 url: from_url(new_url),
                 camo_url: image.camo_url.clone(),
@@ -179,17 +199,22 @@ async fn try_old_hires(
         None => anyhow::bail!("no serial captured"),
         Some(serial) => &serial[1],
     };
-    let base36 = radix_fmt::radix(serial.parse::<i64>()?, 36)
-        .to_string()
-        .to_lowercase();
+    let base36 = radix_fmt::radix(
+        serial
+            .parse::<i64>()
+            .context("integer could not be parsed")?,
+        36,
+    )
+    .to_string()
+    .to_lowercase();
 
     let built_url = format!(
         "http://orig01.deviantart.net/x_by_x-d{base36}.png",
         base36 = base36
     );
 
-    let client =
-        crate::scraper::client_with_redir_limit(config, reqwest::redirect::Policy::none())?;
+    let client = crate::scraper::client_with_redir_limit(config, reqwest::redirect::Policy::none())
+        .context("could not create DA scraping agent")?;
     let resp = client
         .get(built_url)
         .send()
@@ -200,9 +225,11 @@ async fn try_old_hires(
         .iter()
         .find(|(name, _value)| name.as_str().to_lowercase() == "location")
     {
-        let loc = loc.to_str()?;
+        let loc = loc.to_str().context("location not valid string")?;
         images.push(ScrapeImage {
-            url: crate::scraper::from_url(Url::parse(loc)?),
+            url: crate::scraper::from_url(
+                Url::parse(loc).context("new old_hires location is not valid URL")?,
+            ),
             camo_url: crate::scraper::from_url(camo.clone()),
         });
         return Ok(images);
