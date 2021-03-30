@@ -103,7 +103,6 @@ pub async fn tumblr_scrape(
         post_id = post_id,
         api_key = api_key
     );
-    debug!("Requesting API URL {} from Tumblr", api_url);
 
     let client = crate::scraper::client(config)?;
     let resp: Value = reqwest_cache
@@ -236,7 +235,7 @@ async fn add_meta(post: Value, images: Option<Vec<ScrapeImage>>) -> Result<Optio
         Some(images) => {
             let source_url = post["post_url"].as_str().map(|x| x.to_string());
             let source_url = source_url.map(|x| Url::from_str(&x)).transpose()?;
-            let source_url = source_url.map(|x| from_url(x));
+            let source_url = source_url.map(from_url);
             let author_name = post["blog_name"].as_str().map(|x| x.to_string());
             let description = post["summary"].as_str().map(|x| x.to_string());
 

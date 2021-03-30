@@ -150,7 +150,7 @@ impl Default for Configuration {
                 .unwrap(),
             allowed_origins: "".to_string(),
             check_csrf_presence: false,
-            tumblr_api_key: std::env::var("TUMBLR_API_KEY").map_or(None, Some),
+            tumblr_api_key: std::env::var("TUMBLR_API_KEY").ok(),
             sled_cache: "./sled".into(),
             cache_duration: 60,
             cache_http_duration: 60,
