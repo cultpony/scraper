@@ -6,23 +6,24 @@ use crate::{scraper::ScrapeImage, Configuration};
 use anyhow::{Context, Result};
 use futures_cache::{Cache, Duration};
 use log::trace;
+use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use regex::Regex;
 use serde_json::Value;
 use url::Url;
 
-lazy_static::lazy_static! {
-    static ref URL_REGEX: Regex = Regex::from_str(r#"\Ahttps?://(?:mobile\.)?twitter.com/([A-Za-z\d_]+)/status/([\d]+)/?"#)
+ref_thread_local! {
+    static managed URL_REGEX: Regex = Regex::from_str(r#"\Ahttps?://(?:mobile\.)?twitter.com/([A-Za-z\d_]+)/status/([\d]+)/?"#)
         .expect("failure in setting up essential regex");
-    static ref GT_REGEX: Regex = Regex::from_str(r#"decodeURIComponent\("gt=(\d+);"#)
+    static managed GT_REGEX: Regex = Regex::from_str(r#"decodeURIComponent\("gt=(\d+);"#)
         .expect("failure in setting up essential regex");
-    static ref SCRIPT_REGEX: Regex = Regex::from_str(r#"="(https://abs.twimg.com/responsive-web/client-web(?:-legacy)?/main\.[\da-z]+\.js)"#)
+    static managed SCRIPT_REGEX: Regex = Regex::from_str(r#"="(https://abs.twimg.com/responsive-web/client-web(?:-legacy)?/main\.[\da-z]+\.js)"#)
         .expect("failure in setting up essential regex");
-    static ref BEARER_REGEX: Regex = Regex::from_str(r#"(AAAAAAAAAAAAA[^"]*)"#)
+    static managed BEARER_REGEX: Regex = Regex::from_str(r#"(AAAAAAAAAAAAA[^"]*)"#)
         .expect("failure in setting up essential regex");
 }
 
 pub async fn is_twitter(url: &Url) -> Result<bool> {
-    if URL_REGEX.is_match_at(url.as_str(), 0) {
+    if URL_REGEX.borrow().is_match_at(url.as_str(), 0) {
         return Ok(true);
     }
     return Ok(false);
@@ -92,7 +93,7 @@ pub async fn twitter_scrape(
     .context("could not load twitter response cache")?;
     let client = crate::scraper::client(config).context("could not create twitter agent")?;
     let (user, status_id) = {
-        let caps = URL_REGEX.captures(url.as_str());
+        let caps = URL_REGEX.borrow().captures(url.as_str());
         let caps = match caps {
             Some(caps) => caps,
             None => anyhow::bail!("could not parse tweet url"),
@@ -116,12 +117,12 @@ pub async fn twitter_scrape(
             )
             .await
             .context("initial page request failed")?;
-        let gt_caps = GT_REGEX.captures(&api_data);
+        let gt_caps = GT_REGEX.borrow().captures(&api_data);
         let gt = match gt_caps {
             Some(v) => v[1].to_string(),
             None => anyhow::bail!("no GT data found"),
         };
-        let script_caps: Option<regex::Captures> = SCRIPT_REGEX.captures(&api_data);
+        let script_caps: Option<regex::Captures> = SCRIPT_REGEX.borrow().captures(&api_data);
         let script_caps = match script_caps {
             Some(v) => v[1].to_string(),
             None => anyhow::bail!("could not get script"),
@@ -135,7 +136,7 @@ pub async fn twitter_scrape(
             )
             .await
             .context("invalid script_data response")?;
-        let bearer_caps = BEARER_REGEX.captures(&script_data);
+        let bearer_caps = BEARER_REGEX.borrow().captures(&script_data);
         let bearer = match bearer_caps {
             Some(v) => v[0].to_string(),
             None => anyhow::bail!("could not get bearer"),

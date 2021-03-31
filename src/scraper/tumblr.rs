@@ -10,18 +10,19 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use ipnet::IpNet;
+use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use regex::{Captures, Regex};
 use serde_json::Value;
 use url::Url;
 
-lazy_static::lazy_static! {
-    static ref URL_REGEX: Regex = Regex::from_str(r#"https?://(.*)/(image|post)/(\d+).*"#)
+ref_thread_local! {
+    static managed URL_REGEX: Regex = Regex::from_str(r#"https?://(.*)/(image|post)/(\d+).*"#)
         .expect("failure in setting up essential regex");
-    static ref MEDIA_REGEX: Regex = Regex::from_str(r#"https?://(?:\d+\.)?media\.tumblr\.com/[a-f\d]+/[a-f\d]+-[a-f\d]+/s\d+x\d+/[a-f\d]+\.(?:png\|jpe?g\|gif)"#)
+    static managed MEDIA_REGEX: Regex = Regex::from_str(r#"https?://(?:\d+\.)?media\.tumblr\.com/[a-f\d]+/[a-f\d]+-[a-f\d]+/s\d+x\d+/[a-f\d]+\.(?:png\|jpe?g\|gif)"#)
         .expect("failure in setting up essential regex");
-    static ref SIZE_REGEX: Regex = Regex::from_str(r#"_(\d+)(\..+)\z"#)
+    static managed SIZE_REGEX: Regex = Regex::from_str(r#"_(\d+)(\..+)\z"#)
         .expect("failure in setting up essential regex");
-    static ref TUMBLR_RANGES: Vec<IpNet> = IpNet::aggregate(&Vec::from([
+    static managed TUMBLR_RANGES: Vec<IpNet> = IpNet::aggregate(&Vec::from([
         IpNet::from_str("66.6.32.0/24").unwrap(),
         IpNet::from_str("66.6.33.0/24").unwrap(),
         IpNet::from_str("66.6.44.0/24").unwrap(),
@@ -30,11 +31,11 @@ lazy_static::lazy_static! {
         IpNet::from_str("74.114.154.0/24").unwrap(),
         IpNet::from_str("74.114.155.0/24").unwrap(),
     ]));
-    static ref TUMBLR_SIZES: Vec<u64> = vec![1280, 540, 500, 400, 250, 100, 75];
+    static managed TUMBLR_SIZES: Vec<u64> = vec![1280, 540, 500, 400, 250, 100, 75];
 }
 
 pub async fn is_tumblr(url: &Url) -> Result<bool> {
-    if URL_REGEX.is_match_at(url.as_str(), 0) {
+    if URL_REGEX.borrow().is_match_at(url.as_str(), 0) {
         trace!("tumblr matched on regex URL");
         return Ok(true);
     }
@@ -49,7 +50,7 @@ async fn tumblr_domain(host: url::Host<&str>) -> Result<bool> {
     let hosts = dns_lookup::lookup_host(&host.to_string())?;
     trace!("got hosts for URL: {:?}", hosts);
     for host in hosts {
-        if TUMBLR_RANGES.iter().any(|net| net.contains(&host)) {
+        if TUMBLR_RANGES.borrow().iter().any(|net| net.contains(&host)) {
             return Ok(true);
         }
     }
@@ -79,7 +80,7 @@ pub async fn tumblr_scrape(
     let reqwest_cache = Cache::load(db.open_tree("tumblr_request_cache")?)?;
 
     trace!("analyzing tumblr url {}", url);
-    let post_id = URL_REGEX.captures(url.as_str());
+    let post_id = URL_REGEX.borrow().captures(url.as_str());
     let post_id = match post_id {
         None => return Ok(None),
         Some(p) => p,
@@ -267,8 +268,9 @@ async fn upsize(
     };
     debug!("mapping {:?} to alt_size", image_url);
     let mut urls = Vec::new();
-    for size in TUMBLR_SIZES.iter() {
-        let image_url = SIZE_REGEX.replace(image_url, |caps: &Captures| {
+    let tumblr_sizes = TUMBLR_SIZES.borrow().clone();
+    for size in tumblr_sizes.iter() {
+        let image_url = SIZE_REGEX.borrow().replace(image_url, |caps: &Captures| {
             format!("_{}{}", size, &caps[2])
         });
         let image_url = Url::from_str(&image_url)?;

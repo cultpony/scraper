@@ -2058,6 +2058,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ref_thread_local"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13ed77408f669435578692a16ae54efbbc662f9727c85315d9beb319be098d94"
+
+[[package]]
 name = "regex"
 version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2194,6 +2200,7 @@ dependencies = [
  "lazy_static",
  "log",
  "radix_fmt",
+ "ref_thread_local",
  "regex",
  "reqwest",
  "securefmt",

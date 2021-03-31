@@ -1,10 +1,11 @@
 use crate::scraper::{ScrapeResult, ScrapeResultData};
 use crate::{scraper::ScrapeImage, Configuration};
 use anyhow::Result;
+use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use url::Url;
 
-lazy_static::lazy_static! {
-    static ref MIME_TYPES: Vec<String> = Vec::from([
+ref_thread_local! {
+    static managed MIME_TYPES: Vec<String> = Vec::from([
         "image/gif",
         "image/jpeg",
         "image/png",
@@ -19,7 +20,7 @@ pub async fn is_raw(url: &Url, config: &Configuration) -> Result<bool> {
     let res = client.head(url.clone()).send().await?;
     if res.status() == 200 {
         let content_type = res.headers()["content-type"].to_str()?;
-        Ok(MIME_TYPES.contains(&content_type.to_string()))
+        Ok(MIME_TYPES.borrow().contains(&content_type.to_string()))
     } else {
         Ok(false)
     }
