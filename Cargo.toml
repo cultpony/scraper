@@ -32,10 +32,12 @@ radix_fmt = "1.0.0"
 camo-url = "0.1.2"
 hex = "0.4.3"
 ref_thread_local = "0.1.0"
+visdom = "0.4.8"
 
 [dev-dependencies]
 tokio-test = "0.4"
 visit_diff = "0.1"
+random-number = "0.1.4"
 
 [profile.release]
 opt-level = 3

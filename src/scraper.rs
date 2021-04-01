@@ -1,4 +1,5 @@
 mod deviantart;
+mod nitter;
 mod raw;
 mod tumblr;
 mod twitter;
@@ -153,6 +154,11 @@ pub async fn scrape(
         Duration::seconds(config.cache_check_duration as i64),
         twitter::is_twitter(&url),
     );
+    let is_nitter = url_check_cache.wrap(
+        (&url, "nitter"),
+        Duration::seconds(config.cache_check_duration as i64),
+        nitter::is_nitter(&url),
+    );
     let is_tumblr = url_check_cache.wrap(
         (&url, "tumblr"),
         Duration::seconds(config.cache_check_duration as i64),
@@ -184,6 +190,10 @@ pub async fn scrape(
         Ok(raw::raw_scrape(config, &url, db)
             .await
             .context("Raw parser failed")?)
+    } else if is_nitter.await.unwrap_or(false) {
+        Ok(nitter::nitter_scrape(config, &url, db)
+            .await
+            .context("Nitter parser failed")?)
     } else {
         Ok(None)
     }
@@ -237,6 +247,37 @@ mod test {
             author_name: Some("TheOnion".to_string()),
             description: Some("Deal Alert: The Federal Government Is Cutting You A $1,400 Stimulus Check That You Can, And Should, Spend Exclusively On 93 Copies Of ‘Stardew Valley’ https://t.co/RuRZN4XWIK https://t.co/tclZn8dQgg".to_string()),
             images: Vec::new(),
+        }), scrape);
+        Ok(())
+    }
+
+    #[test]
+    fn test_nitter_scraper() -> Result<()> {
+        crate::LOGGER.flush();
+        let host = &crate::scraper::nitter::NITTER_INSTANCES;
+        let host = { &host[random_number::random!(..(host.len()))] };
+        let tweet = format!(
+            r#"https://{}/TheOnion/status/1372594920427491335?s=20"#,
+            host
+        );
+        let config = Configuration::default();
+        let db = sled::Config::default().temporary(true).open()?;
+
+        let scrape = tokio_test::block_on(scrape(&config, &db, &tweet))?.unwrap();
+        visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
+            source_url: Some(from_url(url::Url::from_str(r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#)?)),
+            author_name: Some("TheOnion".to_string()),
+            description: Some("Deal Alert: The Federal Government Is Cutting You A $1,400 Stimulus Check That You Can, And Should, Spend Exclusively On 93 Copies Of ‘Stardew Valley’ bit.ly/3bX25sQ".to_string()),
+            images: vec![
+                ScrapeImage {
+                    url: from_url(url::Url::from_str(
+                        &format!("https://{}/pic/media%2FEwxvzkEXAAMFg7K.jpg%3Fname%3Dorig?s=20", host),
+                    )?),
+                    camo_url: from_url(url::Url::from_str(
+                        &format!("https://{}/pic/media%2FEwxvzkEXAAMFg7K.jpg%3Fname%3Dorig?s=20", host),
+                    )?),
+                }
+            ]
         }), scrape);
         Ok(())
     }

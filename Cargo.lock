@@ -1313,6 +1313,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "htmlentity"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5b3d2d0340cc45e3f48fe9fe11b6dee3be57a7085fb80ab467c881fa49a2332c"
+dependencies = [
+ "lazy_static",
+]
+
+[[package]]
 name = "http"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2049,6 +2058,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "random-number"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf11d0abc54262a8433ac1a8dfe446acf12ede5a78db55128ec3019554fd869d"
+dependencies = [
+ "proc-macro-hack",
+ "rand 0.8.3",
+ "random-number-macro-impl",
+]
+
+[[package]]
+name = "random-number-macro-impl"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd1190fc5d83322d3342b0f9c273275ca35f0da84a1bc1755f1058a73e422dcf"
+dependencies = [
+ "proc-macro-hack",
+ "quote 1.0.9",
+ "syn 1.0.64",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2146,6 +2177,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56770675ebc04927ded3e60633437841581c285dc6236109ea25fbf3beb7b59e"
 
 [[package]]
+name = "rphtml"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "231d1cab85a7b233571177c8584b6b00760a2e344134efb0d29a4fb865832474"
+dependencies = [
+ "htmlentity",
+ "lazy_static",
+ "thiserror",
+]
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2200,6 +2242,7 @@ dependencies = [
  "lazy_static",
  "log",
  "radix_fmt",
+ "random-number",
  "ref_thread_local",
  "regex",
  "reqwest",
@@ -2212,6 +2255,7 @@ dependencies = [
  "tokio-test",
  "url 2.2.1",
  "url_serde",
+ "visdom",
  "visit_diff",
 ]
 
@@ -2932,6 +2976,18 @@ name = "version_check"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+
+[[package]]
+name = "visdom"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f89762917368eb09a0d19642590af225f8836e9800a7aa729520860ec12f1c0"
+dependencies = [
+ "lazy_static",
+ "regex",
+ "rphtml",
+ "thiserror",
+]
 
 [[package]]
 name = "visit_diff"

@@ -107,6 +107,9 @@ pub struct Configuration {
     camo_host: Option<String>,
     #[envconfig(from = "ENABLE_GET_REQUEST", default = "false")]
     enable_get_request: bool,
+
+    #[envconfig(from = "PREFERRED_NITTER_INSTANCE_HOST")]
+    preferred_nitter_instance_host: Option<String>,
 }
 
 #[derive(Clone)]
@@ -159,6 +162,7 @@ impl Default for Configuration {
             camo_host: None,
             camo_key: None,
             enable_get_request: false,
+            preferred_nitter_instance_host: None,
         };
         trace!("created config: {:?}", s);
         s
