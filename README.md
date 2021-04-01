@@ -4,7 +4,7 @@ A scraper intended for use with philomena. This tool presents a simple HTTP endp
 
 ## Compiling and Install
 
-Simply checkout scraper.rs, then clone camo-url into a side-folder (`../camo-url`)
+Simply checkout scraper.rs, and run either "cargo test" or "cargo build".
 
 Then run "cargo test" to verify the scraper is working (requires Tumblr API Key)
 
@@ -24,6 +24,7 @@ Available Scrapers are:
 |-------------|-------------|-------------------------------------------------------------------------------|
 | DeviantArt  | Alpha       | Will likely be able to grab atleast the CDN Image, which is usually hi-res    |
 | Twitter     | Production  | Requires regular adjustment but works otherwise                               |
+| Nitter      | Production  | Only supports officially listed instances                                     |
 | Tumblr      | Beta        | Missing Text-Post Scraping                                                    |
 | Raw         | Production  | Valid for gif, jpeg, png, svg, webm                                           |
 
