@@ -9,12 +9,22 @@ on:
   push:
       branches:
         - main
+      paths:
+        - '**/Cargo.toml'
+        - '**/Cargo.lock'
+        - '**/src'
   pull_request:
       branches:
         - main
+      paths:
+        - '**/Cargo.toml'
+        - '**/Cargo.lock'
+        - '**/src'
   release:
     types:
       - created
+  schedule:
+    - cron: '17 19 */8 * *'
 
 name: Check Scraper Functionality on Push/PR
 
@@ -85,3 +95,8 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+
+      - name: Audit used Crates
+        uses: actions-rs/audit-check@v1.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
