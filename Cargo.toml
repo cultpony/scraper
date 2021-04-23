@@ -32,7 +32,7 @@ radix_fmt = "1.0.0"
 camo-url = "0.1.2"
 hex = "0.4.3"
 ref_thread_local = "0.1.0"
-visdom = "0.4.9"
+visdom = "0.4.10"
 
 [dev-dependencies]
 tokio-test = "0.4"
