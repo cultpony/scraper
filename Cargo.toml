@@ -37,7 +37,7 @@ visdom = "0.4.9"
 [dev-dependencies]
 tokio-test = "0.4"
 visit_diff = "0.1"
-random-number = "0.1.4"
+random-number = "0.1.6"
 
 [profile.release]
 opt-level = 3
