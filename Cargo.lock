@@ -2031,9 +2031,9 @@ dependencies = [
 
 [[package]]
 name = "random-number"
-version = "0.1.4"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf11d0abc54262a8433ac1a8dfe446acf12ede5a78db55128ec3019554fd869d"
+checksum = "0b6c791ad2f753537ebdc0300173be0fc4821eaa628feb2c404f8acaba612d57"
 dependencies = [
  "proc-macro-hack",
  "rand 0.8.3",
