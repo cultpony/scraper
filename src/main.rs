@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use anyhow::Result;
+use std::sync::Mutex;
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
@@ -110,6 +111,8 @@ pub struct Configuration {
 
     #[envconfig(from = "PREFERRED_NITTER_INSTANCE_HOST")]
     preferred_nitter_instance_host: Option<String>,
+    #[envconfig(from = "LOG_LEVEL", default = "INFO")]
+    log_level: LevelFilter,
 }
 
 #[derive(Clone)]
@@ -163,6 +166,7 @@ impl Default for Configuration {
             camo_key: None,
             enable_get_request: false,
             preferred_nitter_instance_host: None,
+            log_level: LevelFilter::Info,
         };
         trace!("created config: {:?}", s);
         s
@@ -170,7 +174,7 @@ impl Default for Configuration {
 }
 
 fn main() -> Result<()> {
-    crate::LOGGER.flush();
+    crate::LOGGER.lock().unwrap().flush();
     use tokio::runtime::Builder;
     let runtime = Builder::new_multi_thread()
         .worker_threads(16)
@@ -213,7 +217,19 @@ impl<State: Clone + Send + Sync + 'static> tide::Middleware<State> for RequestTi
 }
 
 async fn main_start() -> Result<()> {
-    let config = Configuration::init_from_env().unwrap_or_default();
+    let config = Configuration::init_from_env();
+    let config = match config {
+        Err(e) => {
+            log::error!("could not load config: {}", e);
+            Configuration::default()
+        },
+        Ok(v) => v,
+    };
+    log::info!("log level is now {}", config.log_level);
+    LOGGER.lock().unwrap().set_new_spec(flexi_logger::LogSpecification::default(LevelFilter::Warn)
+        .module("scraper", config.log_level)
+        .build()
+    );
     let mut app = tide::with_state(State::new(config.clone())?);
     app.with(RequestTimer());
     app.at("/images/scrape").post(scrape_post);
@@ -225,17 +241,19 @@ async fn main_start() -> Result<()> {
 }
 
 lazy_static! {
-    static ref LOGGER: LoggerHandle = {
+    static ref LOGGER: Mutex<LoggerHandle> = {
         better_panic::install();
         if let Err(e) = kankyo::load(false) {
             info!("couldn't load .env file: {}, this is probably fine", e);
         }
-        flexi_logger::Logger::with(
-            flexi_logger::LogSpecification::default(LevelFilter::Warn)
-                .module("scraper", LevelFilter::Trace)
-                .build(),
+        Mutex::new(
+            flexi_logger::Logger::with(
+                flexi_logger::LogSpecification::default(LevelFilter::Warn)
+                    .module("scraper", LevelFilter::Info)
+                    .build(),
+            )
+            .start()
+            .unwrap()
         )
-        .start()
-        .unwrap()
     };
 }
