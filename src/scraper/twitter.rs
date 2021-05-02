@@ -199,3 +199,56 @@ pub async fn twitter_scrape(
         images,
     })))
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use crate::scraper::{from_url, scrape};
+    use std::str::FromStr;
+
+    #[test]
+    fn test_twitter_scraper() -> Result<()> {
+        crate::LOGGER.flush();
+        let tweet = r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#;
+        let config = Configuration::default();
+        let db = sled::Config::default().temporary(true).open()?;
+        let mut parsed = url::Url::from_str(tweet)?;
+        parsed.set_fragment(None);
+        parsed.set_query(None);
+        let scrape = tokio_test::block_on(scrape(&config, &db, tweet));
+        let scrape = match scrape {
+            Ok(s) => s,
+            Err(e) => return Err(e),
+        };
+        let mut scrape = match scrape {
+            Some(s) => s,
+            None => anyhow::bail!("got none response from scraper"),
+        };
+        let test_results_expected = ScrapeImage {
+            url: from_url(url::Url::from_str(
+                "https://pbs.twimg.com/media/EwxvzkEXAAMFg7k.jpg",
+            )?),
+            camo_url: from_url(url::Url::from_str(
+                "https://pbs.twimg.com/media/EwxvzkEXAAMFg7k.jpg",
+            )?),
+        };
+        match &mut scrape {
+            ScrapeResult::Ok(scrape) => {
+                for test_result in scrape.images.iter() {
+                    assert_eq!(&test_results_expected, test_result);
+                }
+                scrape.images = Vec::new();
+            }
+            ScrapeResult::Err(e) => assert!(false, "error in scrape: {:?}", e.errors),
+            ScrapeResult::None => assert!(false, "no data in scrape"),
+        }
+        visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
+            source_url: Some(from_url(parsed)),
+            author_name: Some("TheOnion".to_string()),
+            description: Some("Deal Alert: The Federal Government Is Cutting You A $1,400 Stimulus Check That You Can, And Should, Spend Exclusively On 93 Copies Of ‘Stardew Valley’ https://t.co/RuRZN4XWIK https://t.co/tclZn8dQgg".to_string()),
+            images: Vec::new(),
+        }), scrape);
+        Ok(())
+    }
+}

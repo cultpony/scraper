@@ -135,3 +135,42 @@ pub async fn nitter_scrape(
         images,
     })))
 }
+
+#[cfg(test)]
+mod test {
+    use crate::scraper::{from_url, scrape};
+
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_nitter_scraper() -> Result<()> {
+        crate::LOGGER.flush();
+        let host = &crate::scraper::nitter::NITTER_INSTANCES;
+        let host = { &host[random_number::random!(..(host.len()))] };
+        let tweet = format!(
+            r#"https://{}/TheOnion/status/1372594920427491335?s=20"#,
+            host
+        );
+        let config = Configuration::default();
+        let db = sled::Config::default().temporary(true).open()?;
+
+        let scrape = tokio_test::block_on(scrape(&config, &db, &tweet))?.unwrap();
+        visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
+            source_url: Some(from_url(url::Url::from_str(r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#)?)),
+            author_name: Some("TheOnion".to_string()),
+            description: Some("Deal Alert: The Federal Government Is Cutting You A $1,400 Stimulus Check That You Can, And Should, Spend Exclusively On 93 Copies Of ‘Stardew Valley’ bit.ly/3bX25sQ".to_string()),
+            images: vec![
+                ScrapeImage {
+                    url: from_url(url::Url::from_str(
+                        &format!("https://{}/pic/media%2FEwxvzkEXAAMFg7K.jpg%3Fname%3Dorig?s=20", host),
+                    )?),
+                    camo_url: from_url(url::Url::from_str(
+                        &format!("https://{}/pic/media%2FEwxvzkEXAAMFg7K.jpg%3Fname%3Dorig?s=20", host),
+                    )?),
+                }
+            ]
+        }), scrape);
+        Ok(())
+    }
+}

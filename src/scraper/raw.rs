@@ -41,3 +41,38 @@ pub async fn raw_scrape(
         }]),
     })))
 }
+
+#[cfg(test)]
+mod test {
+    use crate::scraper::{from_url, scrape};
+
+    use super::*;
+    use std::str::FromStr;
+    #[test]
+    fn test_raw_scraper() -> Result<()> {
+        crate::LOGGER.flush();
+        let url = r#"https://static.manebooru.art/img/view/2021/3/20/4010154.png"#;
+        let config = Configuration::default();
+        let db = sled::Config::default().temporary(true).open()?;
+        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = match scrape {
+            Ok(s) => s,
+            Err(e) => return Err(e),
+        };
+        let scrape = match scrape {
+            Some(s) => s,
+            None => anyhow::bail!("got none response from scraper"),
+        };
+        let expected_result = ScrapeResult::Ok(ScrapeResultData {
+            source_url: Some(from_url(url::Url::from_str(url)?)),
+            author_name: None,
+            description: None,
+            images: Vec::from([ScrapeImage {
+                url: from_url(url::Url::from_str(url)?),
+                camo_url: from_url(url::Url::from_str(url)?),
+            }]),
+        });
+        visit_diff::assert_eq_diff!(expected_result, scrape);
+        Ok(())
+    }
+}

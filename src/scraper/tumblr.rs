@@ -304,3 +304,46 @@ async fn url_ok(client: &Client, url: &Url) -> Result<bool> {
         Ok(false)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use log::warn;
+
+    use crate::scraper::scrape;
+
+    use super::*;
+
+    #[test]
+    fn test_tumblr_scraper() -> Result<()> {
+        crate::LOGGER.flush();
+        let url = r#"https://tcn1205.tumblr.com/post/186904081532/in-wonderland"#;
+        let config = Configuration::default();
+        if config.tumblr_api_key.is_none() {
+            warn!("Tumblr API key not configured, skipping");
+            return Ok(());
+        }
+        let db = sled::Config::default().temporary(true).open()?;
+        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = match scrape {
+            Ok(s) => s,
+            Err(e) => return Err(e),
+        };
+        let scrape = match scrape {
+            Some(s) => s,
+            None => anyhow::bail!("got none response from scraper"),
+        };
+        let expected_result = ScrapeResult::Ok(ScrapeResultData{
+            source_url: Some("https://tcn1205.tumblr.com/post/186904081532/in-wonderland".to_string()),
+            author_name: Some("tcn1205".to_string()),
+            description: Some("In Wonderland.".to_string()),
+            images: vec![
+                ScrapeImage{
+                    url: "https://64.media.tumblr.com/cf3b6e5981e0aaf0f1be305429faa6c4/tumblr_pw0dzrDNvN1vlyxx7o1_1280.png".to_string(),
+                    camo_url: "https://64.media.tumblr.com/cf3b6e5981e0aaf0f1be305429faa6c4/tumblr_pw0dzrDNvN1vlyxx7o1_400.png".to_string(),
+                }
+            ],
+        });
+        visit_diff::assert_eq_diff!(expected_result, scrape);
+        Ok(())
+    }
+}

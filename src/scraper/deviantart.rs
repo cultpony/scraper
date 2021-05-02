@@ -237,3 +237,59 @@ async fn try_old_hires(
     }
     return Ok(images);
 }
+
+#[cfg(test)]
+mod test {
+
+    use crate::scraper::{scrape, url_to_str};
+
+    use super::*;
+
+    #[test]
+    fn test_deviantart_scraper() -> Result<()> {
+        crate::LOGGER.flush();
+        let url = r#"https://www.deviantart.com/the-park/art/Comm-Baseball-cap-derpy-833396912"#;
+        let config = Configuration::default();
+        let db = sled::Config::default().temporary(true).open()?;
+        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = match scrape {
+            Ok(s) => s,
+            Err(e) => return Err(e),
+        };
+        let mut scrape = match scrape {
+            Some(s) => s,
+            None => anyhow::bail!("got none response from scraper"),
+        };
+        {
+            // remove token from URL
+            match &mut scrape {
+                ScrapeResult::Ok(result) => {
+                    for image in result.images.iter_mut() {
+                        let fixup = url_to_str(&image.url);
+                        let mut fixup = url::Url::from_str(&fixup)?;
+                        fixup.query_pairs_mut().clear();
+                        (*(image)).url = from_url(fixup);
+                        let fixup = url_to_str(&image.camo_url);
+                        let mut fixup = url::Url::from_str(&fixup)?;
+                        fixup.query_pairs_mut().clear();
+                        (*(image)).camo_url = from_url(fixup);
+                    }
+                }
+                _ => (),
+            }
+        }
+        let expected_result = ScrapeResult::Ok(ScrapeResultData{
+            source_url: Some("https://www.deviantart.com/the-park/art/Comm-Baseball-cap-derpy-833396912".to_string()),
+            author_name: Some("the-park".to_string()),
+            description: None,
+            images: vec![
+                ScrapeImage{
+                    url: "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/39da62f1-b049-4f7a-b10b-4cc5167cb9a2/dds6l68-3084d503-abbf-4f6d-bd82-7a36298e0106.png?".to_string(),
+                    camo_url: "https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/39da62f1-b049-4f7a-b10b-4cc5167cb9a2/dds6l68-3084d503-abbf-4f6d-bd82-7a36298e0106.png?".to_string(),
+                }
+            ],
+        });
+        visit_diff::assert_eq_diff!(expected_result, scrape);
+        Ok(())
+    }
+}
