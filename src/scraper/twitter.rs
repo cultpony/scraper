@@ -209,7 +209,7 @@ mod test {
 
     #[test]
     fn test_twitter_scraper() -> Result<()> {
-        crate::LOGGER.flush();
+        crate::LOGGER.lock().unwrap().flush();
         let tweet = r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#;
         let config = Configuration::default();
         let db = sled::Config::default().temporary(true).open()?;
