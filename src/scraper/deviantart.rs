@@ -247,7 +247,7 @@ mod test {
 
     #[test]
     fn test_deviantart_scraper() -> Result<()> {
-        crate::LOGGER.lock().flush();
+        crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://www.deviantart.com/the-park/art/Comm-Baseball-cap-derpy-833396912"#;
         let config = Configuration::default();
         let db = sled::Config::default().temporary(true).open()?;
