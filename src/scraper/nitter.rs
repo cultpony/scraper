@@ -145,7 +145,7 @@ mod test {
 
     #[test]
     fn test_nitter_scraper() -> Result<()> {
-        crate::LOGGER.flush();
+        crate::LOGGER.lock().unwrap().flush();
         let host = &crate::scraper::nitter::NITTER_INSTANCES;
         let host = { &host[random_number::random!(..(host.len()))] };
         let tweet = format!(
