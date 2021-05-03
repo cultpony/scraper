@@ -315,7 +315,7 @@ mod test {
 
     #[test]
     fn test_tumblr_scraper() -> Result<()> {
-        crate::LOGGER.flush();
+        crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://tcn1205.tumblr.com/post/186904081532/in-wonderland"#;
         let config = Configuration::default();
         if config.tumblr_api_key.is_none() {
