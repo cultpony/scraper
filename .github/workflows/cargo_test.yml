@@ -13,6 +13,8 @@ on:
         - '**/Cargo.toml'
         - '**/Cargo.lock'
         - '**/src'
+        - '**.rs'
+        - '**/.github/**.yml'
   pull_request:
       branches:
         - main
@@ -20,6 +22,8 @@ on:
         - '**/Cargo.toml'
         - '**/Cargo.lock'
         - '**/src'
+        - '**.rs'
+        - '**/.github/**.yml'
   release:
     types:
       - created
