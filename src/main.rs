@@ -1,11 +1,11 @@
 use std::time::Instant;
 
 use anyhow::Result;
-use std::sync::Mutex;
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
 use log::{info, trace, LevelFilter};
+use std::sync::Mutex;
 use tide::Request;
 
 use crate::scraper::ScrapeResult;
@@ -222,13 +222,14 @@ async fn main_start() -> Result<()> {
         Err(e) => {
             log::error!("could not load config: {}", e);
             Configuration::default()
-        },
+        }
         Ok(v) => v,
     };
     log::info!("log level is now {}", config.log_level);
-    LOGGER.lock().unwrap().set_new_spec(flexi_logger::LogSpecification::default(LevelFilter::Warn)
-        .module("scraper", config.log_level)
-        .build()
+    LOGGER.lock().unwrap().set_new_spec(
+        flexi_logger::LogSpecification::default(LevelFilter::Warn)
+            .module("scraper", config.log_level)
+            .build(),
     );
     let mut app = tide::with_state(State::new(config.clone())?);
     app.with(RequestTimer());
@@ -253,7 +254,7 @@ lazy_static! {
                     .build(),
             )
             .start()
-            .unwrap()
+            .unwrap(),
         )
     };
 }
