@@ -241,8 +241,8 @@ async fn add_meta(post: Value, images: Option<Vec<ScrapeImage>>) -> Result<Optio
             let description = post["summary"].as_str().map(|x| x.to_string());
 
             Ok(Some(ScrapeResult::Ok(ScrapeResultData {
-                author_name,
                 source_url,
+                author_name,
                 description,
                 images,
             })))
