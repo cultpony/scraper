@@ -144,6 +144,7 @@ mod test {
     use std::str::FromStr;
 
     #[test]
+    #[ignore]
     fn test_nitter_scraper() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
         let host = &crate::scraper::nitter::NITTER_INSTANCES;

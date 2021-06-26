@@ -227,7 +227,8 @@ async fn main_start() -> Result<()> {
     };
     log::info!("log level is now {}", config.log_level);
     LOGGER.lock().unwrap().set_new_spec(
-        flexi_logger::LogSpecification::default(LevelFilter::Warn)
+        flexi_logger::LogSpecification::builder()
+            .default(LevelFilter::Warn)
             .module("scraper", config.log_level)
             .build(),
     );
@@ -249,7 +250,8 @@ lazy_static! {
         }
         Mutex::new(
             flexi_logger::Logger::with(
-                flexi_logger::LogSpecification::default(LevelFilter::Warn)
+                flexi_logger::LogSpecification::builder()
+                    .default(LevelFilter::Warn)
                     .module("scraper", LevelFilter::Info)
                     .build(),
             )
