@@ -26,7 +26,7 @@ pub async fn is_twitter(url: &Url) -> Result<bool> {
     if URL_REGEX.borrow().is_match_at(url.as_str(), 0) {
         return Ok(true);
     }
-    return Ok(false);
+    Ok(false)
 }
 
 async fn twitter_page_request(client: &reqwest::Client, page_url: &str) -> Result<String> {

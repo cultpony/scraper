@@ -235,7 +235,7 @@ async fn try_old_hires(
         });
         return Ok(images);
     }
-    return Ok(images);
+    Ok(images)
 }
 
 #[cfg(test)]

@@ -55,7 +55,7 @@ async fn tumblr_domain(host: url::Host<&str>) -> Result<bool> {
         }
     }
     trace!("host not in URL list");
-    return Ok(false);
+    Ok(false)
 }
 
 async fn make_tumblr_api_request(client: &Client, api_url: &str) -> Result<Value> {
