@@ -18,7 +18,7 @@ kankyo = "0.3"
 regex = "1.4"
 lazy_static = "1.4"
 tokio = { version = "1.10", features = ["full"] }
-async-std = { version = "1.9", features = ["attributes", "tokio1"] }
+async-std = { version = "1.10", features = ["attributes", "tokio1"] }
 envconfig = "0.10"
 better-panic = "0.2"
 tide = "0.16"
