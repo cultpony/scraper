@@ -318,7 +318,8 @@ mod test {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://tcn1205.tumblr.com/post/186904081532/in-wonderland"#;
         let config = Configuration::default();
-        if config.tumblr_api_key.is_none() {
+        let api_key = config.tumblr_api_key.clone().unwrap_or_default();
+        if config.tumblr_api_key.is_none() && api_key.trim().len() == 0 {
             warn!("Tumblr API key not configured, skipping");
             return Ok(());
         }

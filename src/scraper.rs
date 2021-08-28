@@ -1,5 +1,6 @@
 mod deviantart;
 mod nitter;
+mod philomena;
 mod raw;
 mod tumblr;
 mod twitter;
@@ -169,6 +170,11 @@ pub async fn scrape(
         Duration::seconds(config.cache_check_duration as i64),
         deviantart::is_deviantart(&url),
     );
+    let is_philomena = url_check_cache.wrap(
+        (&url, "philomena"),
+        Duration::seconds(config.cache_check_duration as i64),
+        philomena::is_philomena(&url),
+    );
     let is_raw = url_check_cache.wrap(
         (&url, "raw"),
         Duration::seconds(config.cache_check_duration as i64),
@@ -194,6 +200,10 @@ pub async fn scrape(
         Ok(nitter::nitter_scrape(config, &url, db)
             .await
             .context("Nitter parser failed")?)
+    } else if is_philomena.await.unwrap_or(false) {
+        Ok(philomena::philomena_scrape(config, &url, db)
+            .await
+            .context("Philomena parser failed")?)
     } else {
         Ok(None)
     }
