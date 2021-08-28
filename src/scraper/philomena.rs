@@ -62,12 +62,20 @@ pub async fn philomena_scrape(
     } else {
         description
     };
+    debug!("source_url: {:?}", image.source_url);
+    let source_url = image.source_url.clone();
+    let source_url = if source_url.clone().unwrap_or_default().trim().len() == 0 {
+        None
+    } else {
+        source_url
+    };
+    let source_url = source_url
+        .map(|x| Url::from_str(&x))
+        .transpose()
+        .context(format!("source url: {:?}", &image.source_url))?
+        .map(from_url);
     Ok(Some(ScrapeResult::Ok(ScrapeResultData {
-        source_url: image
-            .source_url
-            .map(|x| Url::from_str(&x))
-            .transpose()?
-            .map(from_url),
+        source_url,
         author_name: image
             .tags
             .iter()
@@ -168,6 +176,20 @@ mod test {
                     ],
                 },
             ),
+            (
+                r#"https://derpibooru.org/images/17368"#,
+                ScrapeResultData {
+                    source_url: None,
+                    author_name: None,
+                    description: Some("Dash, how'd you get in my(hit by shampoo bottle)".to_string()),
+                    images: vec![
+                        ScrapeImage {
+                            url: "https://derpicdn.net/img/view/2012/6/23/17368__safe_rainbow+dash_pegasus_pony_bathtub_female_irl_mare_photo_ponies+in+real+life_shower_solo_surprised_toilet_vector.jpg".to_string(),
+                            camo_url: "https://derpicdn.net/img/view/2012/6/23/17368__safe_rainbow+dash_pegasus_pony_bathtub_female_irl_mare_photo_ponies+in+real+life_shower_solo_surprised_toilet_vector.jpg".to_string(),
+                        },
+                    ],
+                },
+            )
         ];
         let config = Configuration::default();
         let db = sled::Config::default().temporary(true).open()?;
