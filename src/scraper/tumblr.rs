@@ -279,7 +279,7 @@ async fn upsize(
             .wrap(
                 &image_url,
                 Duration::seconds(config.cache_http_duration as i64),
-                url_ok(&client, &image_url),
+                url_ok(client, &image_url),
             )
             .await?
         {
