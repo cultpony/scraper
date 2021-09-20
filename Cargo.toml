@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 reqwest = { version = "0.11", features = ["json", "socks", "cookies"] }
 log = "0.4"
-flexi_logger = "0.18"
+flexi_logger = "0.19"
 url = { version = "2.2", features = ["serde"] }
 url_serde = "0.2"
 serde = { version = "1.0", features = ["derive"] }
