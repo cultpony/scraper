@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use log::trace;
 use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use regex::Regex;
