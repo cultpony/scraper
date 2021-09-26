@@ -7,6 +7,7 @@ mod twitter;
 
 use anyhow::{Context, Result};
 use futures_cache::{Cache, Duration};
+use log::debug;
 use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use visit_diff::Diff;
@@ -82,8 +83,10 @@ impl ScrapeResult {
         ScrapeResult::Err(ScrapeResultError {
             errors: {
                 let mut errors = Vec::new();
+                debug!("request error: {}", e);
                 for e in e.chain() {
                     if !e.is::<reqwest::Error>() {
+                        debug!("request error chain {}: {}", errors.len(), e);
                         errors.push(e)
                     }
                 }
