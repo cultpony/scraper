@@ -18,7 +18,7 @@ use url::Url;
 ref_thread_local! {
     static managed URL_REGEX: Regex = Regex::from_str(r#"https?://(.*)/(image|post)/(\d+).*"#)
         .expect("failure in setting up essential regex");
-    static managed MEDIA_REGEX: Regex = Regex::from_str(r#"https?://(?:\d+\.)?media\.tumblr\.com/[a-f\d]+/[a-f\d]+-[a-f\d]+/s\d+x\d+/[a-f\d]+\.(?:png\|jpe?g\|gif)"#)
+    static managed MEDIA_REGEX: Regex = Regex::from_str(r#"(https?://(?:\d+\.)?media\.tumblr\.com/[a-f\d]+/[a-f\d]+-[a-f\d]+/s\d+x\d+/[a-f\d]+\.(?:png|jpe?g|gif))"#)
         .expect("failure in setting up essential regex");
     static managed SIZE_REGEX: Regex = Regex::from_str(r#"_(\d+)(\..+)\z"#)
         .expect("failure in setting up essential regex");
@@ -158,11 +158,45 @@ async fn process_post(
 ) -> Result<Option<Vec<ScrapeImage>>> {
     match post_type {
         PostType::Photo => process_post_photo(post, db, config, client).await,
-        PostType::Text => {
-            //TODO: implement tumblr text scraping
-            unimplemented!()
-        }
+        PostType::Text => process_post_text(post, db, config, client).await,
     }
+}
+
+async fn process_post_text(
+    post: Value,
+    _db: &sled::Db,
+    config: &Configuration,
+    _client: &Client,
+) -> Result<Option<Vec<ScrapeImage>>> {
+    let body = post
+        .get("body")
+        .map(|x| x.as_str())
+        .flatten()
+        .unwrap_or_default();
+    println!("{:?}", body);
+    let media_regex = MEDIA_REGEX.borrow().clone();
+    let images = media_regex.captures(body);
+    let images = match images {
+        None => return Ok(None),
+        Some(v) => v,
+    };
+    let mut images: Vec<&str> = images
+        .iter()
+        .map(|x| x.map(|x| x.as_str()).unwrap_or_default())
+        .collect();
+    images.sort_unstable();
+    images.dedup();
+    println!("Found {} potential images", images.len());
+    let mut meta_images = Vec::new();
+    for i in images {
+        let i = Url::from_str(i)?;
+        println!("cap: {:?}", i);
+        meta_images.push(ScrapeImage {
+            camo_url: from_url(camo_url(config, &i)?),
+            url: from_url(i),
+        });
+    }
+    Ok(Some(meta_images))
 }
 
 async fn process_post_photo(
@@ -341,6 +375,42 @@ mod test {
                 ScrapeImage{
                     url: "https://64.media.tumblr.com/cf3b6e5981e0aaf0f1be305429faa6c4/tumblr_pw0dzrDNvN1vlyxx7o1_1280.png".to_string(),
                     camo_url: "https://64.media.tumblr.com/cf3b6e5981e0aaf0f1be305429faa6c4/tumblr_pw0dzrDNvN1vlyxx7o1_400.png".to_string(),
+                }
+            ],
+        });
+        visit_diff::assert_eq_diff!(expected_result, scrape);
+        Ok(())
+    }
+
+    #[test]
+    fn test_text_post_tumblr() -> Result<()> {
+        crate::LOGGER.lock().unwrap().flush();
+        let url =
+            r#"https://furbobz.tumblr.com/post/644123280842850304/izzy-unicorn-from-mlp-gee-five"#;
+        let config = Configuration::default();
+        let api_key = config.tumblr_api_key.clone().unwrap_or_default();
+        if config.tumblr_api_key.is_none() && api_key.trim().len() == 0 {
+            warn!("Tumblr API key not configured, skipping");
+            return Ok(());
+        }
+        let db = sled::Config::default().temporary(true).open()?;
+        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = match scrape {
+            Ok(s) => s,
+            Err(e) => return Err(e),
+        };
+        let scrape = match scrape {
+            Some(s) => s,
+            None => anyhow::bail!("got none response from scraper"),
+        };
+        let expected_result = ScrapeResult::Ok(ScrapeResultData{
+            source_url: Some("https://furbobz.tumblr.com/post/644123280842850304/izzy-unicorn-from-mlp-gee-five".to_string()),
+            author_name: Some("furbobz".to_string()),
+            description: Some("izzy unicorn from mlp gee five".to_string()),
+            images: vec![
+                ScrapeImage{
+                    url: "https://64.media.tumblr.com/7c61f6b644378b615154b58b5543965b/b978851be7b6da1d-d5/s640x960/faae997dfafd96c1bcd6000e23b0ac6acd57908a.png".to_string(),
+                    camo_url: "https://64.media.tumblr.com/7c61f6b644378b615154b58b5543965b/b978851be7b6da1d-d5/s640x960/faae997dfafd96c1bcd6000e23b0ac6acd57908a.png".to_string(),
                 }
             ],
         });

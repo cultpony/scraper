@@ -20,7 +20,7 @@ pub async fn is_derpibooru(url: &Url) -> Result<bool> {
 }
 
 pub fn url_to_api(url: &Url) -> Result<Option<Url>> {
-    for cap in URL_REGEX.borrow().captures(url.as_str()) {
+    if let Some(cap) = URL_REGEX.borrow().captures(url.as_str()) {
         match cap.name("image_id") {
             None => return Ok(None),
             Some(m) => {

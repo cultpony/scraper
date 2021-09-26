@@ -57,14 +57,14 @@ pub async fn philomena_scrape(
     let image = resp.image;
     let image_view = Url::from_str(&image.view_url)?;
     let description = image.description;
-    let description = if description.clone().unwrap_or_default().trim().len() == 0 {
+    let description = if description.clone().unwrap_or_default().trim().is_empty() {
         None
     } else {
         description
     };
     debug!("source_url: {:?}", image.source_url);
     let source_url = image.source_url.clone();
-    let source_url = if source_url.clone().unwrap_or_default().trim().len() == 0 {
+    let source_url = if source_url.clone().unwrap_or_default().trim().is_empty() {
         None
     } else {
         source_url
@@ -79,8 +79,7 @@ pub async fn philomena_scrape(
         author_name: image
             .tags
             .iter()
-            .filter(|x| x.starts_with("artist:"))
-            .next()
+            .find(|x| x.starts_with("artist:"))
             .cloned()
             .map(|x| x.strip_prefix("artist:").unwrap().to_string()),
         description,
