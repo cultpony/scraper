@@ -109,8 +109,6 @@ async fn make_philomena_api_request(
 
 #[cfg(test)]
 mod test {
-    use log::warn;
-
     use crate::scraper::{scrape, ScrapeResultData};
 
     use super::*;
@@ -127,8 +125,8 @@ mod test {
                     description: None,
                     images: vec![
                         ScrapeImage {
-                            url: "https://derpicdn.net/img/view/2017/5/1/1426211__safe_artist-colon-zacatron94_starlight+glimmer_pony_unicorn_female_mare_simple+background_smiling_solo_transparent+background_vector.png".to_string(),
-                            camo_url: "https://derpicdn.net/img/view/2017/5/1/1426211__safe_artist-colon-zacatron94_starlight+glimmer_pony_unicorn_female_mare_simple+background_smiling_solo_transparent+background_vector.png".to_string(),
+                            url: "https://derpicdn.net/img/view/2017/5/1/1426211".to_string(),
+                            camo_url: "https://derpicdn.net/img/view/2017/5/1/1426211".to_string(),
                         },
                     ],
                 },
@@ -141,8 +139,8 @@ mod test {
                     description: None,
                     images: vec![
                         ScrapeImage {
-                            url: "https://derpicdn.net/img/view/2017/5/1/1426211__safe_artist-colon-zacatron94_starlight+glimmer_pony_unicorn_female_mare_simple+background_smiling_solo_transparent+background_vector.png".to_string(),
-                            camo_url: "https://derpicdn.net/img/view/2017/5/1/1426211__safe_artist-colon-zacatron94_starlight+glimmer_pony_unicorn_female_mare_simple+background_smiling_solo_transparent+background_vector.png".to_string(),
+                            url: "https://derpicdn.net/img/view/2017/5/1/1426211".to_string(),
+                            camo_url: "https://derpicdn.net/img/view/2017/5/1/1426211".to_string(),
                         },
                     ],
                 },
@@ -155,8 +153,8 @@ mod test {
                     description: None,
                     images: vec![
                         ScrapeImage {
-                            url: "https://derpicdn.net/img/view/2012/1/2/1__dead+source_safe_artist-colon-speccysy_fluttershy_pegasus_pony_g4_2011_artifact_cloud_cloudy_cute_derpibooru+legacy_eyes+closed_female_first+fluttershy.png".to_string(),
-                            camo_url: "https://derpicdn.net/img/view/2012/1/2/1__dead+source_safe_artist-colon-speccysy_fluttershy_pegasus_pony_g4_2011_artifact_cloud_cloudy_cute_derpibooru+legacy_eyes+closed_female_first+fluttershy.png".to_string(),
+                            url: "https://derpicdn.net/img/view/2012/1/2/1".to_string(),
+                            camo_url: "https://derpicdn.net/img/view/2012/1/2/1".to_string(),
                         },
                     ],
                 },
@@ -169,8 +167,8 @@ mod test {
                     description: None,
                     images: vec![
                         ScrapeImage {
-                            url: "https://derpicdn.net/img/view/2012/1/2/1__dead+source_safe_artist-colon-speccysy_fluttershy_pegasus_pony_g4_2011_artifact_cloud_cloudy_cute_derpibooru+legacy_eyes+closed_female_first+fluttershy.png".to_string(),
-                            camo_url: "https://derpicdn.net/img/view/2012/1/2/1__dead+source_safe_artist-colon-speccysy_fluttershy_pegasus_pony_g4_2011_artifact_cloud_cloudy_cute_derpibooru+legacy_eyes+closed_female_first+fluttershy.png".to_string(),
+                            url: "https://derpicdn.net/img/view/2012/1/2/1".to_string(),
+                            camo_url: "https://derpicdn.net/img/view/2012/1/2/1".to_string(),
                         },
                     ],
                 },
@@ -183,8 +181,8 @@ mod test {
                     description: Some("Dash, how'd you get in my(hit by shampoo bottle)".to_string()),
                     images: vec![
                         ScrapeImage {
-                            url: "https://derpicdn.net/img/view/2012/6/23/17368__safe_rainbow+dash_pegasus_pony_bathtub_female_irl_mare_photo_ponies+in+real+life_shower_solo_surprised_toilet_vector.jpg".to_string(),
-                            camo_url: "https://derpicdn.net/img/view/2012/6/23/17368__safe_rainbow+dash_pegasus_pony_bathtub_female_irl_mare_photo_ponies+in+real+life_shower_solo_surprised_toilet_vector.jpg".to_string(),
+                            url: "https://derpicdn.net/img/view/2012/6/23/17368".to_string(),
+                            camo_url: "https://derpicdn.net/img/view/2012/6/23/17368".to_string(),
                         },
                     ],
                 },
@@ -198,10 +196,19 @@ mod test {
                 Ok(s) => s,
                 Err(e) => return Err(e),
             };
-            let scrape = match scrape {
+            let mut scrape = match scrape {
                 Some(s) => s,
                 None => anyhow::bail!("got none response from scraper"),
             };
+            match &mut scrape {
+                ScrapeResult::Ok(ref mut scrape) => {
+                    scrape.images.iter_mut().for_each(|x| {
+                        x.url = x.url.split_once("__").unwrap().0.to_string();
+                        x.camo_url = x.camo_url.split_once("__").unwrap().0.to_string();
+                    })
+                },
+                _ => panic!(),
+            }
             let expected_result = ScrapeResult::Ok(url.1);
             visit_diff::assert_eq_diff!(expected_result, scrape);
         }
