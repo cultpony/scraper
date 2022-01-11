@@ -11,10 +11,10 @@ use regex::Regex;
 use serde_json::Value;
 use url::Url;
 
+const ACTIVATION_URL: &'static str = "https://api.twitter.com/1.1/guest/activate.json";
+
 ref_thread_local! {
     static managed URL_REGEX: Regex = Regex::from_str(r#"\Ahttps?://(?:mobile\.)?twitter.com/([A-Za-z\d_]+)/status/([\d]+)/?"#)
-        .expect("failure in setting up essential regex");
-    static managed GT_REGEX: Regex = Regex::from_str(r#"decodeURIComponent\("gt=(\d+);"#)
         .expect("failure in setting up essential regex");
     static managed SCRIPT_REGEX: Regex = Regex::from_str(r#"="(https://abs.twimg.com/responsive-web/client-web(?:-legacy)?/main\.[\da-z]+\.js)"#)
         .expect("failure in setting up essential regex");
@@ -55,6 +55,29 @@ async fn get_script_data(client: &reqwest::Client, url: &str) -> Result<String> 
         .text()
         .await
         .context("could not read script_data response")?)
+}
+
+async fn get_gt_token(client: &reqwest::Client, bearer: &str) -> Result<String> {
+    trace!("making GT activation request");
+    let v = client
+        .post(ACTIVATION_URL.to_string())
+        .header("Authorization", format!("Bearer {}", bearer))
+        .send()
+        .await
+        .context("could not complete activation request")?
+        .error_for_status()
+        .context("bad status for GT activation")?
+        .json::<serde_json::Value>()
+        .await
+        .context("could not read GT response")?;
+    let guest_token = v.as_object().unwrap().get("guest_token");
+    match guest_token {
+        Some(guest_token) => Ok(match guest_token.as_str() {
+            Some(v) => v.to_string(),
+            None => anyhow::bail!("invalid GT in twitter API response"),
+        }),
+        None => anyhow::bail!("no GT in twitter API response"),
+    }
 }
 
 async fn make_api_request(
@@ -117,11 +140,6 @@ pub async fn twitter_scrape(
             )
             .await
             .context("initial page request failed")?;
-        let gt_caps = GT_REGEX.borrow().captures(&api_data);
-        let gt = match gt_caps {
-            Some(v) => v[1].to_string(),
-            None => anyhow::bail!("no GT data found"),
-        };
         let script_caps: Option<regex::Captures> = SCRIPT_REGEX.borrow().captures(&api_data);
         let script_caps = match script_caps {
             Some(v) => v[1].to_string(),
@@ -141,6 +159,7 @@ pub async fn twitter_scrape(
             Some(v) => v[0].to_string(),
             None => anyhow::bail!("could not get bearer"),
         };
+        let gt = get_gt_token(&client, &bearer).await.context("could not get guest token")?;
         (gt, bearer)
     };
 
