@@ -386,7 +386,7 @@ mod test {
     fn test_text_post_tumblr() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
         let url =
-            r#"https://furbobz.tumblr.com/post/644123280842850304/izzy-unicorn-from-mlp-gee-five"#;
+            r#"https://witchtaunter.tumblr.com/post/182898769998/yes-this-is-horse"#;
         let config = Configuration::default();
         let api_key = config.tumblr_api_key.clone().unwrap_or_default();
         if config.tumblr_api_key.is_none() && api_key.trim().len() == 0 {
@@ -404,13 +404,13 @@ mod test {
             None => anyhow::bail!("got none response from scraper"),
         };
         let expected_result = ScrapeResult::Ok(ScrapeResultData{
-            source_url: Some("https://furbobz.tumblr.com/post/644123280842850304/izzy-unicorn-from-mlp-gee-five".to_string()),
-            author_name: Some("furbobz".to_string()),
-            description: Some("izzy unicorn from mlp gee five".to_string()),
+            source_url: Some("https://witchtaunter.tumblr.com/post/182898769998/yes-this-is-horse".to_string()),
+            author_name: Some("witchtaunter".to_string()),
+            description: Some("Yes, this is horse".to_string()),
             images: vec![
                 ScrapeImage{
-                    url: "https://64.media.tumblr.com/7c61f6b644378b615154b58b5543965b/b978851be7b6da1d-d5/s640x960/faae997dfafd96c1bcd6000e23b0ac6acd57908a.png".to_string(),
-                    camo_url: "https://64.media.tumblr.com/7c61f6b644378b615154b58b5543965b/b978851be7b6da1d-d5/s640x960/faae997dfafd96c1bcd6000e23b0ac6acd57908a.png".to_string(),
+                    url: "https://64.media.tumblr.com/fbe494244d7e68e98e59141db4fddab7/tumblr_pn53n8VjWJ1s8a9ojo1_1280.png".to_string(),
+                    camo_url: "https://64.media.tumblr.com/fbe494244d7e68e98e59141db4fddab7/tumblr_pn53n8VjWJ1s8a9ojo1_400.png".to_string(),
                 }
             ],
         });
