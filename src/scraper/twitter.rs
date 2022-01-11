@@ -159,7 +159,9 @@ pub async fn twitter_scrape(
             Some(v) => v[0].to_string(),
             None => anyhow::bail!("could not get bearer"),
         };
-        let gt = get_gt_token(&client, &bearer).await.context("could not get guest token")?;
+        let gt = get_gt_token(&client, &bearer)
+            .await
+            .context("could not get guest token")?;
         (gt, bearer)
     };
 

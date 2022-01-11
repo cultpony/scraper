@@ -201,12 +201,10 @@ mod test {
                 None => anyhow::bail!("got none response from scraper"),
             };
             match &mut scrape {
-                ScrapeResult::Ok(ref mut scrape) => {
-                    scrape.images.iter_mut().for_each(|x| {
-                        x.url = x.url.split_once("__").unwrap().0.to_string();
-                        x.camo_url = x.camo_url.split_once("__").unwrap().0.to_string();
-                    })
-                },
+                ScrapeResult::Ok(ref mut scrape) => scrape.images.iter_mut().for_each(|x| {
+                    x.url = x.url.split_once("__").unwrap().0.to_string();
+                    x.camo_url = x.camo_url.split_once("__").unwrap().0.to_string();
+                }),
                 _ => panic!(),
             }
             let expected_result = ScrapeResult::Ok(url.1);

@@ -385,8 +385,7 @@ mod test {
     #[test]
     fn test_text_post_tumblr() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
-        let url =
-            r#"https://witchtaunter.tumblr.com/post/182898769998/yes-this-is-horse"#;
+        let url = r#"https://witchtaunter.tumblr.com/post/182898769998/yes-this-is-horse"#;
         let config = Configuration::default();
         let api_key = config.tumblr_api_key.clone().unwrap_or_default();
         if config.tumblr_api_key.is_none() && api_key.trim().len() == 0 {
