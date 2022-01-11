@@ -17,7 +17,7 @@ mod scraper;
 pub struct ScrapeRequest {
     url: String,
     #[serde(alias = "_method")]
-    method: Option<String>,
+    _method: Option<String>,
 }
 
 async fn verify_origin(req: &Request<State>) -> bool {
