@@ -11,7 +11,7 @@ use regex::Regex;
 use serde_json::Value;
 use url::Url;
 
-const ACTIVATION_URL: &'static str = "https://api.twitter.com/1.1/guest/activate.json";
+const ACTIVATION_URL: &str = "https://api.twitter.com/1.1/guest/activate.json";
 
 ref_thread_local! {
     static managed URL_REGEX: Regex = Regex::from_str(r#"\Ahttps?://(?:mobile\.)?twitter.com/([A-Za-z\d_]+)/status/([\d]+)/?"#)
