@@ -656,12 +656,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "cookie_store"
-version = "0.12.0"
+name = "cookie"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3818dfca4b0cb5211a659bbcbb94225b7127407b2b135e650d717bfb78ab10d3"
+checksum = "d5f1c7727e460397e56abc4bddc1d49e07a1ad78fc98eb2e1c8f032a58a2f80d"
 dependencies = [
- "cookie",
+ "percent-encoding 2.1.0",
+ "time 0.2.27",
+ "version_check",
+]
+
+[[package]]
+name = "cookie_store"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3f7034c0932dc36f5bd8ec37368d971346809435824f277cb3b8299fc56167c"
+dependencies = [
+ "cookie 0.15.1",
  "idna 0.2.3",
  "log",
  "publicsuffix",
@@ -1223,9 +1234,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.4"
+version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7f3675cfef6a30c8031cf9e6493ebdc3bb3272a3fea3923c4210d1830e6a472"
+checksum = "0c9de88456263e249e241fcd211d3954e2c9b0ef7ccfc235a444eb367cae3689"
 dependencies = [
  "bytes",
  "fnv",
@@ -1360,7 +1371,7 @@ dependencies = [
  "async-channel",
  "async-std",
  "base64 0.13.0",
- "cookie",
+ "cookie 0.14.4",
  "futures-lite",
  "infer",
  "pin-project-lite 0.2.7",
@@ -1924,13 +1935,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "publicsuffix"
-version = "1.5.6"
+name = "psl-types"
+version = "2.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95b4ce31ff0a27d93c8de1849cf58162283752f065a90d508f1105fa6c9a213f"
+checksum = "e8eda7c62d9ecaafdf8b62374c006de0adf61666ae96a96ba74a37134aa4e470"
+
+[[package]]
+name = "publicsuffix"
+version = "2.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "292972edad6bbecc137ab84c5e36421a4a6c979ea31d3cc73540dd04315b33e1"
 dependencies = [
+ "byteorder",
+ "hashbrown 0.11.2",
  "idna 0.2.3",
- "url 2.2.2",
+ "psl-types",
 ]
 
 [[package]]
@@ -2103,17 +2122,18 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.4"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "246e9f61b9bb77df069a947682be06e31ac43ea37862e244a69f177694ea6d22"
+checksum = "87f242f1488a539a79bac6dbe7c8609ae43b7914b7736210f239a37cccb32525"
 dependencies = [
  "base64 0.13.0",
  "bytes",
- "cookie",
+ "cookie 0.15.1",
  "cookie_store",
  "encoding_rs",
  "futures-core",
  "futures-util",
+ "h2",
  "http",
  "http-body",
  "hyper",
@@ -2126,10 +2146,10 @@ dependencies = [
  "native-tls",
  "percent-encoding 2.1.0",
  "pin-project-lite 0.2.7",
+ "proc-macro-hack",
  "serde",
  "serde_json",
  "serde_urlencoded",
- "time 0.2.27",
  "tokio",
  "tokio-native-tls",
  "tokio-socks",
