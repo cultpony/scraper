@@ -27,6 +27,8 @@ Available Scrapers are:
 | Nitter      | Production  | Only supports officially listed instances                                     |
 | Tumblr      | Beta        | Missing Text-Post Scraping                                                    |
 | Raw         | Production  | Valid for gif, jpeg, png, svg, webm                                           |
+| Philomena   | Production  | Works for a selected number of boorus                                         |
+| Buzzly.Art  | Production  | Works, Supports Additional Tags                                               |
 
 ## API
 

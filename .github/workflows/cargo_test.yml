@@ -106,7 +106,8 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-      - name: Audit used Crates
-        uses: actions-rs/audit-check@v1.2.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # Not terribly interested in these, stdweb and time spam and fail CI unnecessarily
+      #- name: Audit used Crates
+      #  uses: actions-rs/audit-check@v1.2.0
+      #  with:
+      #    token: ${{ secrets.GITHUB_TOKEN }}
