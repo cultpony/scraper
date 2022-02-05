@@ -1,0 +1,20 @@
+mutation GetSubmission($username: String!, $slug: String!) {
+  fetchSubmissionByUsernameAndSlug(
+    input: { username: $username, slug: $slug }
+  ) {
+    submission {
+      ...fullSubmission
+    }
+  }
+}
+
+fragment fullSubmission on Submission {
+  description
+  tags
+  path
+  thumbnailPath
+  account: accountByAccount {
+    displayName
+    username
+  }
+}
