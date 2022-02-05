@@ -82,6 +82,7 @@ pub async fn philomena_scrape(
             .find(|x| x.starts_with("artist:"))
             .cloned()
             .map(|x| x.strip_prefix("artist:").unwrap().to_string()),
+        additional_tags: None,
         description,
         images: vec![ScrapeImage {
             camo_url: from_url(camo_url(config, &image_view)?),
@@ -122,6 +123,7 @@ mod test {
                 ScrapeResultData {
                     source_url: Some("http://brunomilan13.deviantart.com/art/Starlight-Glimmer-Season-6-by-Zacatron94-678047433".to_string()),
                     author_name: Some("zacatron94".to_string()),
+                    additional_tags: None,
                     description: None,
                     images: vec![
                         ScrapeImage {
@@ -136,6 +138,7 @@ mod test {
                 ScrapeResultData {
                     source_url: Some("http://brunomilan13.deviantart.com/art/Starlight-Glimmer-Season-6-by-Zacatron94-678047433".to_string()),
                     author_name: Some("zacatron94".to_string()),
+                    additional_tags: None,
                     description: None,
                     images: vec![
                         ScrapeImage {
@@ -150,6 +153,7 @@ mod test {
                 ScrapeResultData {
                     source_url: Some("https://www.deviantart.com/speccysy/art/Afternoon-Flight-215193985".to_string()),
                     author_name: Some("speccysy".to_string()),
+                    additional_tags: None,
                     description: None,
                     images: vec![
                         ScrapeImage {
@@ -164,6 +168,7 @@ mod test {
                 ScrapeResultData {
                     source_url: Some("https://www.deviantart.com/speccysy/art/Afternoon-Flight-215193985".to_string()),
                     author_name: Some("speccysy".to_string()),
+                    additional_tags: None,
                     description: None,
                     images: vec![
                         ScrapeImage {
@@ -178,6 +183,7 @@ mod test {
                 ScrapeResultData {
                     source_url: None,
                     author_name: None,
+                    additional_tags: None,
                     description: Some("Dash, how'd you get in my(hit by shampoo bottle)".to_string()),
                     images: vec![
                         ScrapeImage {

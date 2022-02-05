@@ -2,16 +2,15 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use log::trace;
-use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use regex::Regex;
 use reqwest::Url;
 
-ref_thread_local! {
-    static managed URL_REGEX: Regex = Regex::from_str(r#"^https://derpibooru.org/(images/)?(?P<image_id>\d+).*$"#).expect("failure in setting up essential regex");
+lazy_static::lazy_static! {
+    static ref URL_REGEX: Regex = Regex::from_str(r#"^https://derpibooru.org/(images/)?(?P<image_id>\d+).*$"#).expect("failure in setting up essential regex");
 }
 
 pub async fn is_derpibooru(url: &Url) -> Result<bool> {
-    if URL_REGEX.borrow().is_match(url.as_str()) {
+    if URL_REGEX.is_match(url.as_str()) {
         trace!("derpibooru matched on URL pattern 1");
         return Ok(true);
     }
@@ -20,7 +19,7 @@ pub async fn is_derpibooru(url: &Url) -> Result<bool> {
 }
 
 pub fn url_to_api(url: &Url) -> Result<Option<Url>> {
-    if let Some(cap) = URL_REGEX.borrow().captures(url.as_str()) {
+    if let Some(cap) = URL_REGEX.captures(url.as_str()) {
         match cap.name("image_id") {
             None => return Ok(None),
             Some(m) => {

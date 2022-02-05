@@ -1,11 +1,10 @@
 use crate::scraper::{ScrapeResult, ScrapeResultData};
 use crate::{scraper::ScrapeImage, Configuration};
 use anyhow::Result;
-use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use url::Url;
 
-ref_thread_local! {
-    static managed MIME_TYPES: Vec<String> = Vec::from([
+lazy_static::lazy_static! {
+    static ref MIME_TYPES: Vec<String> = Vec::from([
         "image/gif",
         "image/jpeg",
         "image/png",
@@ -20,7 +19,7 @@ pub async fn is_raw(url: &Url, config: &Configuration) -> Result<bool> {
     let res = client.head(url.clone()).send().await?;
     if res.status() == 200 {
         let content_type = res.headers()["content-type"].to_str()?;
-        Ok(MIME_TYPES.borrow().contains(&content_type.to_string()))
+        Ok(MIME_TYPES.contains(&content_type.to_string()))
     } else {
         Ok(false)
     }
@@ -34,6 +33,7 @@ pub async fn raw_scrape(
     Ok(Some(ScrapeResult::Ok(ScrapeResultData {
         source_url: Some(super::from_url(url.clone())),
         author_name: None,
+        additional_tags: None,
         description: None,
         images: Vec::from([ScrapeImage {
             url: super::from_url(url.clone()),
@@ -66,6 +66,7 @@ mod test {
         let expected_result = ScrapeResult::Ok(ScrapeResultData {
             source_url: Some(from_url(url::Url::from_str(url)?)),
             author_name: None,
+            additional_tags: None,
             description: None,
             images: Vec::from([ScrapeImage {
                 url: from_url(url::Url::from_str(url)?),

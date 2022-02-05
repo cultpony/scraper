@@ -1,3 +1,4 @@
+mod buzzly;
 mod deviantart;
 mod nitter;
 mod philomena;
@@ -68,6 +69,7 @@ impl From<String> for ScrapeResultError {
 pub struct ScrapeResultData {
     source_url: Option<UrlT>,
     author_name: Option<String>,
+    additional_tags: Option<Vec<String>>,
     description: Option<String>,
     images: Vec<ScrapeImage>,
 }
@@ -183,6 +185,11 @@ pub async fn scrape(
         Duration::seconds(config.cache_check_duration as i64),
         raw::is_raw(&url, config),
     );
+    let is_buzzly = url_check_cache.wrap(
+        (&url, "buzzly"),
+        Duration::seconds(config.cache_check_duration as i64),
+        buzzly::is_buzzlyart(&url),
+    );
     if is_twitter.await.unwrap_or(false) {
         Ok(twitter::twitter_scrape(config, &url, db)
             .await
@@ -207,6 +214,10 @@ pub async fn scrape(
         Ok(philomena::philomena_scrape(config, &url, db)
             .await
             .context("Philomena parser failed")?)
+    } else if is_buzzly.await.unwrap_or(false) {
+        Ok(buzzly::buzzlyart_scrape(config, &url, db)
+            .await
+            .context("Buzzly parser failed")?)
     } else {
         Ok(None)
     }

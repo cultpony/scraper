@@ -4,7 +4,6 @@ use anyhow::Context;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::debug;
-use ref_thread_local::{ref_thread_local, RefThreadLocal};
 use regex::Regex;
 use std::str::FromStr;
 use url::Url;
@@ -39,18 +38,15 @@ lazy_static! {
     .into_iter()
     .map(std::string::String::from)
     .collect();
-}
-
-ref_thread_local! {
-    static managed TWEET_REGEX: Regex = Regex::from_str(r#"/([A-Za-z\d_]+)/status/([\d]+)[?#]*.*"#).expect("failure in setting up essential regex");
+    static ref TWEET_REGEX: Regex = Regex::from_str(r#"/([A-Za-z\d_]+)/status/([\d]+)[?#]*.*"#)
+        .expect("failure in setting up essential regex");
 }
 
 pub async fn is_nitter(url: &Url) -> Result<bool> {
     Ok(match url.host_str() {
         None => false,
         Some(host) => {
-            NITTER_INSTANCES.contains(&host.to_string())
-                && TWEET_REGEX.borrow().is_match(url.path())
+            NITTER_INSTANCES.contains(&host.to_string()) && TWEET_REGEX.is_match(url.path())
         }
     })
 }
@@ -131,6 +127,7 @@ pub async fn nitter_scrape(
     Ok(Some(ScrapeResult::Ok(ScrapeResultData {
         source_url: Some(super::from_url(source_url)),
         author_name: Some(author.to_string()),
+        additional_tags: None,
         description: Some(description.to_string()),
         images,
     })))
@@ -138,6 +135,8 @@ pub async fn nitter_scrape(
 
 #[cfg(test)]
 mod test {
+    use rand::Rng;
+
     use crate::scraper::{from_url, scrape};
 
     use super::*;
@@ -148,7 +147,8 @@ mod test {
     fn test_nitter_scraper() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
         let host = &crate::scraper::nitter::NITTER_INSTANCES;
-        let host = { &host[random_number::random!(..(host.len()))] };
+        let mut rng = rand::thread_rng();
+        let host = &host[rng.gen_range(0..(host.len()))];
         let tweet = format!(
             r#"https://{}/TheOnion/status/1372594920427491335?s=20"#,
             host
@@ -160,6 +160,7 @@ mod test {
         visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
             source_url: Some(from_url(url::Url::from_str(r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#)?)),
             author_name: Some("TheOnion".to_string()),
+            additional_tags: None,
             description: Some("Deal Alert: The Federal Government Is Cutting You A $1,400 Stimulus Check That You Can, And Should, Spend Exclusively On 93 Copies Of ‘Stardew Valley’ bit.ly/3bX25sQ".to_string()),
             images: vec![
                 ScrapeImage {
