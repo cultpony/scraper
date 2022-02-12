@@ -314,6 +314,7 @@ mod test {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_tumblr_scraper() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://tcn1205.tumblr.com/post/186904081532/in-wonderland"#;
@@ -349,6 +350,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_text_post_tumblr() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://witchtaunter.tumblr.com/post/182898769998/yes-this-is-horse"#;
