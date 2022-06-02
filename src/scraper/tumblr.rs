@@ -59,7 +59,7 @@ async fn tumblr_domain(host: url::Host<&str>) -> Result<bool> {
 
 async fn make_tumblr_api_request(client: &Client, api_url: &str) -> Result<Value> {
     debug!("running api request, not in cache");
-    Ok(client
+    client
         .get(api_url)
         .send()
         .await
@@ -68,7 +68,7 @@ async fn make_tumblr_api_request(client: &Client, api_url: &str) -> Result<Value
         .context("request to tumblr returned error code")?
         .json()
         .await
-        .context("could not parse tumblr response as json")?)
+        .context("could not parse tumblr response as json")
 }
 
 pub async fn tumblr_scrape(
@@ -169,8 +169,7 @@ async fn process_post_text(
 ) -> Result<Option<Vec<ScrapeImage>>> {
     let body = post
         .get("body")
-        .map(|x| x.as_str())
-        .flatten()
+        .and_then(|x| x.as_str())
         .unwrap_or_default();
     println!("{:?}", body);
     let media_regex = MEDIA_REGEX.clone();
@@ -250,13 +249,12 @@ async fn process_post_photo(
             Ok(Some(
                 images
                     .iter()
-                    .map(|(image, preview)| -> Result<ScrapeImage> {
+                    .flat_map(|(image, preview)| -> Result<ScrapeImage> {
                         Ok(ScrapeImage {
                             url: from_url(image.clone()),
                             camo_url: from_url(camo_url(config, preview)?),
                         })
                     })
-                    .flatten()
                     .collect(),
             ))
         }

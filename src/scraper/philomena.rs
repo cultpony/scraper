@@ -96,7 +96,7 @@ async fn make_philomena_api_request(
     api_url: &str,
 ) -> Result<PhilomenaApiResponse> {
     debug!("running api request");
-    Ok(client
+    client
         .get(api_url)
         .send()
         .await
@@ -105,7 +105,7 @@ async fn make_philomena_api_request(
         .context("philomena returned error code")?
         .json()
         .await
-        .context("could not parse philomena")?)
+        .context("could not parse philomena")
 }
 
 #[cfg(test)]
