@@ -1,12 +1,19 @@
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use anyhow::Result;
+use axum::{
+    extract::Query,
+    http::Request,
+    middleware::Next,
+    response::IntoResponse,
+    routing::get,
+    Extension, Json,
+};
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
 use log::{info, trace, LevelFilter};
 use std::sync::Mutex;
-use tide::Request;
 
 use crate::scraper::ScrapeResult;
 
@@ -20,45 +27,45 @@ pub struct ScrapeRequest {
     _method: Option<String>,
 }
 
-async fn verify_origin(req: &Request<State>) -> bool {
-    let origin = req
-        .header("Origin")
-        .map(|x| x.as_str())
-        .unwrap_or(":no-host-origin");
-    req.state().is_allowed_origin(origin)
+async fn origin_check<B>(req: Request<B>, state: Arc<State>, next: Next<B>) -> std::result::Result<impl axum::response::IntoResponse, axum::http::StatusCode> {
+    let origin = req.headers().get("Origin").map(|x| x.to_str()).transpose();
+    match origin {
+        Ok(origin) => {
+            if state.is_allowed_origin(origin) {
+                Ok(next.run(req).await)
+            } else {
+                Err(axum::http::StatusCode::NOT_FOUND)
+            }
+        }
+        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
-async fn scrape_post(mut req: Request<State>) -> tide::Result {
-    if !verify_origin(&req).await {
-        return Err(tide::Error::from(anyhow::Error::msg("access denied")));
+async fn scrape_post(
+    Json(scrape_req): Json<ScrapeRequest>,
+    Extension(state): Extension<Arc<State>>,
+) -> axum::response::Response<String> {
+    match scrape_inner(&state.config, state.result_cache.clone(), scrape_req).await {
+        Ok(v) => v,
+        Err(_) => todo!(),
     }
-    let scrape_req: ScrapeRequest = req.body_json().await?;
-    scrape_inner(
-        &req.state().config,
-        req.state().result_cache.clone(),
-        scrape_req,
-    )
-    .await
 }
 
-async fn scrape(req: Request<State>) -> tide::Result {
-    if !verify_origin(&req).await {
-        return Err(tide::Error::from(anyhow::Error::msg("access denied")));
+async fn scrape(
+    Query(scrape_req): Query<ScrapeRequest>,
+    Extension(state): Extension<Arc<State>>,
+) -> axum::response::Response<String> {
+    match scrape_inner(&state.config, state.result_cache.clone(), scrape_req).await {
+        Ok(v) => v,
+        Err(_) => todo!(),
     }
-    let scrape_req: ScrapeRequest = req.query()?;
-    scrape_inner(
-        &req.state().config,
-        req.state().result_cache.clone(),
-        scrape_req,
-    )
-    .await
 }
 
 async fn scrape_inner(
     config: &Configuration,
     request_cache: ResultCache,
     scrape_req: ScrapeRequest,
-) -> tide::Result {
+) -> Result<axum::response::Response<String>> {
     let url = scrape_req.url.clone();
     let res: std::result::Result<Option<ScrapeResult>, std::sync::Arc<anyhow::Error>> =
         request_cache
@@ -68,27 +75,27 @@ async fn scrape_inner(
         Ok(r) => r,
         Err(e) => {
             let e = ScrapeResult::from_err(e);
-            return Ok(tide::Response::builder(200)
-                .body(serde_json::to_string(&e)?)
-                .content_type(tide::http::mime::JSON)
-                .build());
+            return Ok(axum::response::Response::builder()
+                .status(axum::http::StatusCode::OK)
+                .header(axum::http::header::CONTENT_TYPE, "application/json")
+                .body(serde_json::to_string(&e)?)?);
         }
     };
     let res = match res {
         Some(res) => res,
         None => {
-            return Ok(tide::Response::builder(200)
+            return Ok(axum::response::Response::builder()
+                .status(axum::http::StatusCode::OK)
+                .header(axum::http::header::CONTENT_TYPE, "application/json")
                 .body(serde_json::to_string(&ScrapeResult::Err(
                     "URL invalid".to_string().into(),
-                ))?)
-                .content_type(tide::http::mime::JSON)
-                .build())
+                ))?)?);
         }
     };
-    Ok(tide::Response::builder(200)
-        .body(serde_json::to_string(&res)?)
-        .content_type(tide::http::mime::JSON)
-        .build())
+    Ok(axum::response::Response::builder()
+        .status(axum::http::StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/json")
+        .body(serde_json::to_string(&res)?)?)
 }
 
 #[derive(Envconfig, Clone, securefmt::Debug)]
@@ -118,6 +125,8 @@ pub struct Configuration {
     preferred_nitter_instance_host: Option<String>,
     #[envconfig(from = "LOG_LEVEL", default = "INFO")]
     log_level: LevelFilter,
+    #[envconfig(from = "ALLOW_EMPTY_ORIGIN", default = "false")]
+    allow_empty_origin: bool,
 }
 
 #[derive(Clone)]
@@ -147,14 +156,22 @@ impl State {
                 .build(),
         })
     }
-    pub fn is_allowed_origin(&self, origin: &str) -> bool {
-        let mut allowed = false;
-        for host in &self.parsed_allowed_origins {
-            if host == origin {
-                allowed = true;
+    pub fn is_allowed_origin(&self, origin: Option<&str>) -> bool {
+        match origin {
+            Some(origin) => {
+                let mut allowed = false;
+                for host in &self.parsed_allowed_origins {
+                    if host == origin {
+                        allowed = true;
+                    }
+                }
+                allowed || self.parsed_allowed_origins.is_empty()
+            },
+            None => {
+                self.config.allow_empty_origin
             }
         }
-        allowed || self.parsed_allowed_origins.is_empty()
+        
     }
 }
 
@@ -174,6 +191,7 @@ impl Default for Configuration {
             enable_get_request: false,
             preferred_nitter_instance_host: None,
             log_level: LevelFilter::Info,
+            allow_empty_origin: false,
         };
         trace!("created config: {:?}", s);
         s
@@ -206,21 +224,20 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-struct RequestTimer();
+async fn latency<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
+    let start = Instant::now();
 
-#[tide::utils::async_trait]
-impl<State: Clone + Send + Sync + 'static> tide::Middleware<State> for RequestTimer {
-    async fn handle(&self, req: Request<State>, next: tide::Next<'_, State>) -> tide::Result {
-        let start = Instant::now();
-        let mut res = next.run(req).await;
-        let time_taken = Instant::now().duration_since(start);
-        res.insert_header(
-            "x-time-taken",
-            format!("{:1.3}ms", time_taken.as_secs_f32() * 1000.0),
-        );
+    let mut res = next.run(req).await;
 
-        Ok(res)
-    }
+    let time_taken = start.elapsed();
+    let time_taken = format!("{:1.3}ms", time_taken.as_secs_f32() * 1000.0);
+
+    res.headers_mut().append(
+        "x-time-taken",
+        axum::http::HeaderValue::from_str(&*time_taken).unwrap(),
+    );
+
+    res
 }
 
 async fn main_start() -> Result<()> {
@@ -239,13 +256,19 @@ async fn main_start() -> Result<()> {
             .module("scraper", config.log_level)
             .build(),
     );
-    let mut app = tide::with_state(State::new(config.clone())?);
-    app.with(RequestTimer());
-    app.at("/images/scrape").post(scrape_post);
-    if config.enable_get_request {
-        app.at("/images/scrape").get(scrape);
-    }
-    app.listen(config.bind_to).await?;
+    let state = Arc::new(State::new(config.clone())?);
+    let app = axum::Router::new()
+        .layer(Extension(state.clone()))
+        .layer(axum::middleware::from_fn(latency))
+        .layer(axum::middleware::from_fn(move |a, b| {
+            let state = state.clone();
+            origin_check(a, state, b)
+        }))
+        .route("/images/scrape", get(scrape).post(scrape_post));
+    axum::Server::bind(&config.bind_to)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
     Ok(())
 }
 

@@ -11,7 +11,6 @@ axum-extra = { version = "0.3", features = ["typed-routing"] }
 axum = "0.5"
 moka = { version = "0.8", features = ["future"] }
 anyhow = "1.0"
-async-std = { version = "1.11", features = ["attributes", "tokio1"] }
 better-panic = "0.2"
 camo-url = "0.1"
 dns-lookup = "1.0"
@@ -28,7 +27,6 @@ reqwest = { version = "0.11", features = ["json", "socks", "cookies"] }
 securefmt = "0.1.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tide = "0.16"
 tokio = { version = "1.17", features = ["full"] }
 url = { version = "2.2", features = ["serde"] }
 url_serde = "0.2"
