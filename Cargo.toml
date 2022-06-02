@@ -11,7 +11,7 @@ axum-extra = { version = "0.3", features = ["typed-routing"] }
 axum = "0.5"
 moka = { version = "0.8", features = ["future"] }
 anyhow = "1.0"
-async-std = { version = "1.9", features = ["attributes", "tokio1"] }
+async-std = { version = "1.11", features = ["attributes", "tokio1"] }
 better-panic = "0.2"
 camo-url = "0.1.2"
 dns-lookup = "1.0"
