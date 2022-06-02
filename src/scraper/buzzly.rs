@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use anyhow::Result;
-use futures_cache::{Cache, Duration};
 use graphql_client::{GraphQLQuery, Response};
 use log::*;
 use regex::Regex;
@@ -64,25 +63,15 @@ pub async fn make_buzzly_doc_request(
     Ok(r.data.expect("missing response data"))
 }
 
-pub async fn buzzlyart_scrape(
-    config: &Configuration,
-    url: &Url,
-    db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
+pub async fn buzzlyart_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     trace!("loading buzzly");
     let origin_url = url;
-    let reqwest_cache = Cache::load(db.open_tree("buzzly_request_cache")?)?;
     let client = crate::scraper::client(config)?;
     let matches = URL_REGEX.captures(url.as_str()).unwrap();
     let author_name = matches.get(1).unwrap().as_str();
     let slug = matches.get(2).unwrap().as_str();
-    let data: get_submission::ResponseData = reqwest_cache
-        .wrap(
-            (&url, "buzzlyart:requests"),
-            Duration::seconds(config.cache_http_duration as i64),
-            make_buzzly_doc_request(&client, slug, author_name),
-        )
-        .await?;
+    let data: get_submission::ResponseData =
+        make_buzzly_doc_request(&client, slug, author_name).await?;
     let data = data
         .fetch_submission_by_username_and_slug
         .ok_or_else(|| anyhow::format_err!("missing data in response"))?;
@@ -133,8 +122,7 @@ mod test {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://buzzly.art/~mothnmag/art/fizzy"#;
         let config = Configuration::default();
-        let db = sled::Config::default().temporary(true).open()?;
-        let scrape = tokio_test::block_on(scrape(&config, &db, url))?.unwrap();
+        let scrape = tokio_test::block_on(scrape(&config, url))?.unwrap();
 
         visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
             source_url: Some(

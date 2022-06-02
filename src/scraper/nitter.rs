@@ -50,11 +50,7 @@ pub async fn is_nitter(url: &Url) -> Result<bool> {
         }
     })
 }
-pub async fn nitter_scrape(
-    config: &Configuration,
-    url: &Url,
-    _db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
+pub async fn nitter_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     let mut url = url.clone();
     let original_url = url.clone();
     if let Some(preferred_host) = &config.preferred_nitter_instance_host {
@@ -154,9 +150,8 @@ mod test {
             host
         );
         let config = Configuration::default();
-        let db = sled::Config::default().temporary(true).open()?;
 
-        let scrape = tokio_test::block_on(scrape(&config, &db, &tweet))?.unwrap();
+        let scrape = tokio_test::block_on(scrape(&config, &tweet))?.unwrap();
         visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
             source_url: Some(from_url(url::Url::from_str(r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#)?)),
             author_name: Some("TheOnion".to_string()),

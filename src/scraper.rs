@@ -6,8 +6,9 @@ mod raw;
 mod tumblr;
 mod twitter;
 
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
-use futures_cache::{Cache, Duration};
 use log::debug;
 use serde::{Deserialize, Serialize};
 #[cfg(test)]
@@ -81,7 +82,7 @@ impl Default for ScrapeResult {
 }
 
 impl ScrapeResult {
-    pub fn from_err(e: anyhow::Error) -> ScrapeResult {
+    pub fn from_err(e: Arc<anyhow::Error>) -> ScrapeResult {
         ScrapeResult::Err(ScrapeResultError {
             errors: {
                 let mut errors = Vec::new();
@@ -147,75 +148,42 @@ pub fn client_with_redir_limit(
     Ok(client.build()?)
 }
 
-pub async fn scrape(
-    config: &Configuration,
-    db: &sled::Db,
-    url: &str,
-) -> Result<Option<ScrapeResult>> {
+pub async fn scrape(config: &Configuration, url: &str) -> Result<Option<ScrapeResult>> {
     use std::str::FromStr;
     let url = url::Url::from_str(url).context("could not parse URL for scraper")?;
-    let url_check_cache = Cache::load(db.open_tree("check_cache")?)?;
-    let is_twitter = url_check_cache.wrap(
-        (&url, "twitter"),
-        Duration::seconds(config.cache_check_duration as i64),
-        twitter::is_twitter(&url),
-    );
-    let is_nitter = url_check_cache.wrap(
-        (&url, "nitter"),
-        Duration::seconds(config.cache_check_duration as i64),
-        nitter::is_nitter(&url),
-    );
-    let is_tumblr = url_check_cache.wrap(
-        (&url, "tumblr"),
-        Duration::seconds(config.cache_check_duration as i64),
-        tumblr::is_tumblr(&url),
-    );
-    let is_deviantart = url_check_cache.wrap(
-        (&url, "deviantart"),
-        Duration::seconds(config.cache_check_duration as i64),
-        deviantart::is_deviantart(&url),
-    );
-    let is_philomena = url_check_cache.wrap(
-        (&url, "philomena"),
-        Duration::seconds(config.cache_check_duration as i64),
-        philomena::is_philomena(&url),
-    );
-    let is_raw = url_check_cache.wrap(
-        (&url, "raw"),
-        Duration::seconds(config.cache_check_duration as i64),
-        raw::is_raw(&url, config),
-    );
-    let is_buzzly = url_check_cache.wrap(
-        (&url, "buzzly"),
-        Duration::seconds(config.cache_check_duration as i64),
-        buzzly::is_buzzlyart(&url),
-    );
+    let is_twitter = twitter::is_twitter(&url);
+    let is_nitter = nitter::is_nitter(&url);
+    let is_tumblr = tumblr::is_tumblr(&url);
+    let is_deviantart = deviantart::is_deviantart(&url);
+    let is_philomena = philomena::is_philomena(&url);
+    let is_raw = raw::is_raw(&url, config);
+    let is_buzzly = buzzly::is_buzzlyart(&url);
     if is_twitter.await.unwrap_or(false) {
-        Ok(twitter::twitter_scrape(config, &url, db)
+        Ok(twitter::twitter_scrape(config, &url)
             .await
             .context("Twitter parser failed")?)
     } else if is_deviantart.await.unwrap_or(false) {
-        Ok(deviantart::deviantart_scrape(config, &url, db)
+        Ok(deviantart::deviantart_scrape(config, &url)
             .await
             .context("DeviantArt parser failed")?)
     } else if is_tumblr.await.unwrap_or(false) {
-        Ok(tumblr::tumblr_scrape(config, &url, db)
+        Ok(tumblr::tumblr_scrape(config, &url)
             .await
             .context("Tumblr parser failed")?)
     } else if is_raw.await.unwrap_or(false) {
-        Ok(raw::raw_scrape(config, &url, db)
+        Ok(raw::raw_scrape(config, &url)
             .await
             .context("Raw parser failed")?)
     } else if is_nitter.await.unwrap_or(false) {
-        Ok(nitter::nitter_scrape(config, &url, db)
+        Ok(nitter::nitter_scrape(config, &url)
             .await
             .context("Nitter parser failed")?)
     } else if is_philomena.await.unwrap_or(false) {
-        Ok(philomena::philomena_scrape(config, &url, db)
+        Ok(philomena::philomena_scrape(config, &url)
             .await
             .context("Philomena parser failed")?)
     } else if is_buzzly.await.unwrap_or(false) {
-        Ok(buzzly::buzzlyart_scrape(config, &url, db)
+        Ok(buzzly::buzzlyart_scrape(config, &url)
             .await
             .context("Buzzly parser failed")?)
     } else {

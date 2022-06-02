@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use futures_cache::{Cache, Duration};
 use reqwest::{Client, Url};
 
 use crate::camo::camo_url;
@@ -30,11 +29,7 @@ struct PhilomenaApiImageResponse {
     view_url: String,
 }
 
-pub async fn philomena_scrape(
-    config: &Configuration,
-    url: &Url,
-    db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
+pub async fn philomena_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     trace!("converting philo url to api url");
     let api_url = if is_derpibooru(url).await? {
         derpibooru::url_to_api(url)?
@@ -45,15 +40,8 @@ pub async fn philomena_scrape(
         None => anyhow::bail!("URL did not match and returned empty"),
         Some(v) => v.to_string(),
     };
-    let reqwest_cache = Cache::load(db.open_tree("philomena_request_cache")?)?;
     let client = crate::scraper::client(config)?;
-    let resp: PhilomenaApiResponse = reqwest_cache
-        .wrap(
-            (&api_url, "api_request"),
-            Duration::seconds(config.cache_http_duration as i64),
-            make_philomena_api_request(&client, &api_url),
-        )
-        .await?;
+    let resp: PhilomenaApiResponse = make_philomena_api_request(&client, &api_url).await?;
     let image = resp.image;
     let image_view = Url::from_str(&image.view_url)?;
     let description = image.description;
@@ -195,9 +183,8 @@ mod test {
             )
         ];
         let config = Configuration::default();
-        let db = sled::Config::default().temporary(true).open()?;
         for url in urls {
-            let scrape = tokio_test::block_on(scrape(&config, &db, url.0));
+            let scrape = tokio_test::block_on(scrape(&config, url.0));
             let scrape = match scrape {
                 Ok(s) => s,
                 Err(e) => return Err(e),

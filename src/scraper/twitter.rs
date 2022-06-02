@@ -4,7 +4,6 @@ use crate::scraper::ScrapeResult;
 use crate::scraper::ScrapeResultData;
 use crate::{scraper::ScrapeImage, Configuration};
 use anyhow::{Context, Result};
-use futures_cache::{Cache, Duration};
 use log::trace;
 use regex::Regex;
 use serde_json::Value;
@@ -103,16 +102,7 @@ async fn make_api_request(
         .context("response is not valid json")
 }
 
-pub async fn twitter_scrape(
-    config: &Configuration,
-    url: &Url,
-    db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
-    let reqwest_cache = Cache::load(
-        db.open_tree("twitter_request_cache")
-            .context("twitter response cache unavailable")?,
-    )
-    .context("could not load twitter response cache")?;
+pub async fn twitter_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     let client = crate::scraper::client(config).context("could not create twitter agent")?;
     let (user, status_id) = {
         let caps = URL_REGEX.captures(url.as_str());
@@ -140,12 +130,7 @@ pub async fn twitter_scrape(
             None => anyhow::bail!("could not get script"),
         };
         log::debug!("script_caps: {:?}", script_caps);
-        let script_data = reqwest_cache
-            .wrap(
-                &script_caps,
-                Duration::seconds(config.cache_http_duration as i64),
-                get_script_data(&client, &script_caps),
-            )
+        let script_data = get_script_data(&client, &script_caps)
             .await
             .context("invalid script_data response")?;
         let bearer_caps = BEARER_REGEX.captures(&script_data);
@@ -159,12 +144,7 @@ pub async fn twitter_scrape(
         (gt, bearer)
     };
 
-    let mut api_response = reqwest_cache
-        .wrap(
-            (&api_url, &gt, &bearer),
-            Duration::seconds(config.cache_http_duration as i64),
-            make_api_request(&client, &api_url, &bearer, &gt),
-        )
+    let mut api_response = make_api_request(&client, &api_url, &bearer, &gt)
         .await
         .context("invalid api response")?;
     use std::ops::IndexMut;
@@ -229,11 +209,10 @@ mod test {
         crate::LOGGER.lock().unwrap().flush();
         let tweet = r#"https://twitter.com/theprincessxena/status/1532144541523910658"#;
         let config = Configuration::default();
-        let db = sled::Config::default().temporary(true).open()?;
         let mut parsed = url::Url::from_str(tweet)?;
         parsed.set_fragment(None);
         parsed.set_query(None);
-        let scrape = tokio_test::block_on(scrape(&config, &db, tweet));
+        let scrape = tokio_test::block_on(scrape(&config, tweet));
         let scrape = match scrape {
             Ok(s) => s,
             Err(e) => return Err(e),

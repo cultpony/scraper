@@ -1,4 +1,3 @@
-use futures_cache::{Cache, Duration};
 use log::{debug, trace};
 use reqwest::Client;
 use std::str::FromStr;
@@ -71,13 +70,7 @@ async fn make_tumblr_api_request(client: &Client, api_url: &str) -> Result<Value
         .context("could not parse tumblr response as json")
 }
 
-pub async fn tumblr_scrape(
-    config: &Configuration,
-    url: &Url,
-    db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
-    let reqwest_cache = Cache::load(db.open_tree("tumblr_request_cache")?)?;
-
+pub async fn tumblr_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     trace!("analyzing tumblr url {}", url);
     let post_id = URL_REGEX.captures(url.as_str());
     let post_id = match post_id {
@@ -105,13 +98,7 @@ pub async fn tumblr_scrape(
     );
 
     let client = crate::scraper::client(config)?;
-    let resp: Value = reqwest_cache
-        .wrap(
-            (&api_url, "head"),
-            Duration::seconds(config.cache_http_duration as i64),
-            make_tumblr_api_request(&client, &api_url),
-        )
-        .await?;
+    let resp: Value = make_tumblr_api_request(&client, &api_url).await?;
 
     if resp["meta"]["status"] != 200 {
         anyhow::bail!("tumblr returned non-200 error");
@@ -124,7 +111,7 @@ pub async fn tumblr_scrape(
             debug!("photo post, sending to photo scraper");
             add_meta(
                 resp.clone(),
-                process_post(PostType::Photo, resp.clone(), db, config, &client).await?,
+                process_post(PostType::Photo, resp.clone(), config, &client).await?,
             )
             .await
         }
@@ -132,7 +119,7 @@ pub async fn tumblr_scrape(
             debug!("text post, sending to post scraper");
             add_meta(
                 resp.clone(),
-                process_post(PostType::Text, resp.clone(), db, config, &client).await?,
+                process_post(PostType::Text, resp.clone(), config, &client).await?,
             )
             .await
         }
@@ -151,21 +138,18 @@ enum PostType {
 async fn process_post(
     post_type: PostType,
     post: Value,
-    db: &sled::Db,
     config: &Configuration,
     client: &Client,
 ) -> Result<Option<Vec<ScrapeImage>>> {
     match post_type {
-        PostType::Photo => process_post_photo(post, db, config, client).await,
-        PostType::Text => process_post_text(post, db, config, client).await,
+        PostType::Photo => process_post_photo(post, config, client).await,
+        PostType::Text => process_post_text(post, config).await,
     }
 }
 
 async fn process_post_text(
     post: Value,
-    _db: &sled::Db,
     config: &Configuration,
-    _client: &Client,
 ) -> Result<Option<Vec<ScrapeImage>>> {
     let body = post
         .get("body")
@@ -199,7 +183,6 @@ async fn process_post_text(
 
 async fn process_post_photo(
     post: Value,
-    db: &sled::Db,
     config: &Configuration,
     client: &Client,
 ) -> Result<Option<Vec<ScrapeImage>>> {
@@ -213,8 +196,7 @@ async fn process_post_photo(
             let mut images = Vec::new();
             for photo in photos.iter() {
                 debug!("upsizing photo {}", photo);
-                let image =
-                    upsize(photo["original_size"]["url"].clone(), db, config, client).await?;
+                let image = upsize(photo["original_size"]["url"].clone(), config, client).await?;
                 let image = match image {
                     None => continue,
                     Some(i) => i,
@@ -282,14 +264,7 @@ async fn add_meta(post: Value, images: Option<Vec<ScrapeImage>>) -> Result<Optio
     }
 }
 
-async fn upsize(
-    image_url: Value,
-    db: &sled::Db,
-    config: &Configuration,
-    client: &Client,
-) -> Result<Option<Url>> {
-    let url_ok_cache = Cache::load(db.open_tree("tumblr_url_ok_cache")?)?;
-
+async fn upsize(image_url: Value, _config: &Configuration, client: &Client) -> Result<Option<Url>> {
     let image_url = image_url.as_str();
     let image_url = match image_url {
         None => {
@@ -307,14 +282,7 @@ async fn upsize(
         });
         let image_url = Url::from_str(&image_url)?;
         trace!("found url: {}", image_url);
-        if url_ok_cache
-            .wrap(
-                &image_url,
-                Duration::seconds(config.cache_http_duration as i64),
-                url_ok(client, &image_url),
-            )
-            .await?
-        {
+        if url_ok(client, &image_url).await? {
             trace!("url found valid: {}", image_url);
             urls.push(image_url);
         }
@@ -355,8 +323,7 @@ mod test {
             warn!("Tumblr API key not configured, skipping");
             return Ok(());
         }
-        let db = sled::Config::default().temporary(true).open()?;
-        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = tokio_test::block_on(scrape(&config, url));
         let scrape = match scrape {
             Ok(s) => s,
             Err(e) => return Err(e),
@@ -391,8 +358,7 @@ mod test {
             warn!("Tumblr API key not configured, skipping");
             return Ok(());
         }
-        let db = sled::Config::default().temporary(true).open()?;
-        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = tokio_test::block_on(scrape(&config, url));
         let scrape = match scrape {
             Ok(s) => s,
             Err(e) => return Err(e),

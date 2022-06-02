@@ -25,11 +25,7 @@ pub async fn is_raw(url: &Url, config: &Configuration) -> Result<bool> {
     }
 }
 
-pub async fn raw_scrape(
-    config: &Configuration,
-    url: &Url,
-    _db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
+pub async fn raw_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     Ok(Some(ScrapeResult::Ok(ScrapeResultData {
         source_url: Some(super::from_url(url.clone())),
         author_name: None,
@@ -53,8 +49,7 @@ mod test {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://static.manebooru.art/img/view/2021/3/20/4010154.png"#;
         let config = Configuration::default();
-        let db = sled::Config::default().temporary(true).open()?;
-        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = tokio_test::block_on(scrape(&config, url));
         let scrape = match scrape {
             Ok(s) => s,
             Err(e) => return Err(e),

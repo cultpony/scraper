@@ -33,7 +33,12 @@ async fn scrape_post(mut req: Request<State>) -> tide::Result {
         return Err(tide::Error::from(anyhow::Error::msg("access denied")));
     }
     let scrape_req: ScrapeRequest = req.body_json().await?;
-    scrape_inner(&req.state().config, &req.state().db, scrape_req).await
+    scrape_inner(
+        &req.state().config,
+        req.state().result_cache.clone(),
+        scrape_req,
+    )
+    .await
 }
 
 async fn scrape(req: Request<State>) -> tide::Result {
@@ -41,23 +46,32 @@ async fn scrape(req: Request<State>) -> tide::Result {
         return Err(tide::Error::from(anyhow::Error::msg("access denied")));
     }
     let scrape_req: ScrapeRequest = req.query()?;
-    scrape_inner(&req.state().config, &req.state().db, scrape_req).await
+    scrape_inner(
+        &req.state().config,
+        req.state().result_cache.clone(),
+        scrape_req,
+    )
+    .await
 }
 
 async fn scrape_inner(
     config: &Configuration,
-    db: &sled::Db,
+    request_cache: ResultCache,
     scrape_req: ScrapeRequest,
 ) -> tide::Result {
-    let res: anyhow::Result<Option<ScrapeResult>> =
-        scraper::scrape(config, db, &scrape_req.url).await;
+    let url = scrape_req.url.clone();
+    let res: std::result::Result<Option<ScrapeResult>, std::sync::Arc<anyhow::Error>> =
+        request_cache
+            .try_get_with(scrape_req.url, scraper::scrape(config, &url))
+            .await;
     let res = match res {
         Ok(r) => r,
         Err(e) => {
+            let e = ScrapeResult::from_err(e);
             return Ok(tide::Response::builder(200)
-                .body(serde_json::to_string(&ScrapeResult::from_err(e))?)
+                .body(serde_json::to_string(&e)?)
                 .content_type(tide::http::mime::JSON)
-                .build())
+                .build());
         }
     };
     let res = match res {
@@ -90,14 +104,6 @@ pub struct Configuration {
     #[envconfig(from = "TUMBLR_API_KEY")]
     #[sensitive]
     tumblr_api_key: Option<String>,
-    #[envconfig(from = "CACHE_DB", default = "./sled")]
-    sled_cache: std::path::PathBuf,
-    #[envconfig(from = "CACHE_DURATION", default = "60")]
-    cache_duration: u16,
-    #[envconfig(from = "CACHE_HTTP_DURATION", default = "60")]
-    cache_http_duration: u16,
-    #[envconfig(from = "CACHE_CHECK_DURATION", default = "60")]
-    cache_check_duration: u16,
     #[envconfig(from = "HTTP_PROXY")]
     #[sensitive]
     proxy_url: Option<String>,
@@ -108,7 +114,6 @@ pub struct Configuration {
     camo_host: Option<String>,
     #[envconfig(from = "ENABLE_GET_REQUEST", default = "false")]
     enable_get_request: bool,
-
     #[envconfig(from = "PREFERRED_NITTER_INSTANCE_HOST")]
     preferred_nitter_instance_host: Option<String>,
     #[envconfig(from = "LOG_LEVEL", default = "INFO")]
@@ -119,12 +124,13 @@ pub struct Configuration {
 pub struct State {
     config: Configuration,
     parsed_allowed_origins: Vec<String>,
-    db: sled::Db,
+    result_cache: ResultCache,
 }
+
+pub type ResultCache = moka::future::Cache<String, Option<scraper::ScrapeResult>>;
 
 impl State {
     fn new(config: Configuration) -> Result<Self> {
-        let db = sled::open(config.sled_cache.clone())?;
         Ok(Self {
             parsed_allowed_origins: config
                 .allowed_origins
@@ -132,8 +138,13 @@ impl State {
                 .filter(|x| !x.is_empty())
                 .map(|x| x.to_string())
                 .collect(),
-            db,
             config,
+            result_cache: moka::future::CacheBuilder::new(1000)
+                .initial_capacity(1000)
+                .support_invalidation_closures()
+                .time_to_idle(std::time::Duration::from_secs(10 * 60))
+                .time_to_live(std::time::Duration::from_secs(100 * 60))
+                .build(),
         })
     }
     pub fn is_allowed_origin(&self, origin: &str) -> bool {
@@ -157,10 +168,6 @@ impl Default for Configuration {
             allowed_origins: "".to_string(),
             check_csrf_presence: false,
             tumblr_api_key: std::env::var("TUMBLR_API_KEY").ok(),
-            sled_cache: "./sled".into(),
-            cache_duration: 60,
-            cache_http_duration: 60,
-            cache_check_duration: 60,
             proxy_url: None,
             camo_host: None,
             camo_key: None,

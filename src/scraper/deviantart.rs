@@ -29,11 +29,7 @@ pub async fn is_deviantart(url: &Url) -> Result<bool> {
 }
 
 //TODO: cache results
-pub async fn deviantart_scrape(
-    config: &Configuration,
-    url: &Url,
-    _db: &sled::Db,
-) -> Result<Option<ScrapeResult>> {
+pub async fn deviantart_scrape(config: &Configuration, url: &Url) -> Result<Option<ScrapeResult>> {
     let client = crate::scraper::client(config)?;
     let resp = client
         .get(url.to_owned())
@@ -250,8 +246,7 @@ mod test {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://www.deviantart.com/the-park/art/Comm-Baseball-cap-derpy-833396912"#;
         let config = Configuration::default();
-        let db = sled::Config::default().temporary(true).open()?;
-        let scrape = tokio_test::block_on(scrape(&config, &db, url));
+        let scrape = tokio_test::block_on(scrape(&config, url));
         let scrape = match scrape {
             Ok(s) => s,
             Err(e) => return Err(e),
