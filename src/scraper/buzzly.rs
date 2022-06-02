@@ -128,6 +128,7 @@ mod test {
     use super::*;
 
     #[test]
+    #[ignore = "buzzly is not supported anymore"]
     fn test_buzzlyart_scraper() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
         let url = r#"https://buzzly.art/~mothnmag/art/fizzy"#;

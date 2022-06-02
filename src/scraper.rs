@@ -123,7 +123,7 @@ pub fn client_with_redir_limit(
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(5000))
         .connect_timeout(std::time::Duration::from_millis(2500))
-        .user_agent("Mozilla/5.0")
+        .user_agent("curl/7.83.1")
         .cookie_store(true)
         .redirect(redir_policy);
     let client = match config.proxy_url.clone() {

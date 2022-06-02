@@ -34,12 +34,12 @@ async fn twitter_page_request(client: &reqwest::Client, page_url: &str) -> Resul
         .get(page_url)
         .send()
         .await
-        .context("could not get api_data request")?
+        .with_context(|| format!("could not get api_data request @ {page_url}"))?
         .error_for_status()
-        .context("bad status code for api_data request")?
+        .with_context(|| format!("bad status code for api_data request @ {page_url}"))?
         .text()
         .await
-        .context("could not read api data response")?)
+        .with_context(|| format!("could not read api data response from {page_url}"))?)
 }
 
 async fn get_script_data(client: &reqwest::Client, url: &str) -> Result<String> {
@@ -85,13 +85,13 @@ async fn make_api_request(
     bearer: &str,
     gt: &str,
 ) -> Result<Value> {
-    trace!("making api request: {}", url);
+    trace!("making api request: {url}");
     let req = client
         .get(url)
         .header("Authorization", format!("Bearer {}", bearer))
         .header("x-guest-token", gt)
         .build()
-        .context("failed to build client api_request")?;
+        .with_context(|| format!("failed to build client api_request against {url}"))?;
     Ok(client
         .execute(req)
         .await
@@ -131,12 +131,7 @@ pub async fn twitter_scrape(
 
     let (gt, bearer) = {
         let page_url = page_url.clone();
-        let api_data = reqwest_cache
-            .wrap(
-                &page_url,
-                Duration::seconds(config.cache_http_duration as i64),
-                twitter_page_request(&client, &page_url),
-            )
+        let api_data = twitter_page_request(&client, &page_url)
             .await
             .context("initial page request failed")?;
         let script_caps: Option<regex::Captures> = SCRIPT_REGEX.captures(&api_data);
@@ -231,7 +226,7 @@ mod test {
     #[test]
     fn test_twitter_scraper() -> Result<()> {
         crate::LOGGER.lock().unwrap().flush();
-        let tweet = r#"https://twitter.com/TheOnion/status/1372594920427491335?s=20"#;
+        let tweet = r#"https://twitter.com/theprincessxena/status/1532144541523910658"#;
         let config = Configuration::default();
         let db = sled::Config::default().temporary(true).open()?;
         let mut parsed = url::Url::from_str(tweet)?;
