@@ -1,102 +1,16 @@
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
 use anyhow::Result;
-use axum::{
-    extract::Query,
-    http::Request,
-    middleware::Next,
-    response::IntoResponse,
-    routing::get,
-    Extension, Json,
-};
+use axum::{routing::get, Extension, Json};
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
-use log::{info, trace, LevelFilter, debug};
+use log::{info, trace, LevelFilter};
 use std::sync::Mutex;
-
-use crate::scraper::ScrapeResult;
 
 mod camo;
 mod scraper;
-
-#[derive(serde::Deserialize, Clone)]
-pub struct ScrapeRequest {
-    url: String,
-    #[serde(alias = "_method")]
-    _method: Option<String>,
-}
-
-async fn origin_check<B>(req: Request<B>, state: Arc<State>, next: Next<B>) -> std::result::Result<impl axum::response::IntoResponse, axum::http::StatusCode> {
-    let origin = req.headers().get("Origin").map(|x| x.to_str()).transpose();
-    match origin {
-        Ok(origin) => {
-            if state.is_allowed_origin(origin) {
-                Ok(next.run(req).await)
-            } else {
-                Err(axum::http::StatusCode::NOT_FOUND)
-            }
-        }
-        Err(_) => Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR),
-    }
-}
-
-async fn scrape_post(
-    Json(scrape_req): Json<ScrapeRequest>,
-    Extension(state): Extension<Arc<State>>,
-) -> axum::response::Response<String> {
-    match scrape_inner(&state.config, state.result_cache.clone(), scrape_req).await {
-        Ok(v) => v,
-        Err(_) => todo!(),
-    }
-}
-
-async fn scrape(
-    Query(scrape_req): Query<ScrapeRequest>,
-    Extension(state): Extension<Arc<State>>,
-) -> axum::response::Response<String> {
-    match scrape_inner(&state.config, state.result_cache.clone(), scrape_req).await {
-        Ok(v) => v,
-        Err(_) => todo!(),
-    }
-}
-
-async fn scrape_inner(
-    config: &Configuration,
-    request_cache: ResultCache,
-    scrape_req: ScrapeRequest,
-) -> Result<axum::response::Response<String>> {
-    let url = scrape_req.url.clone();
-    let res: std::result::Result<Option<ScrapeResult>, std::sync::Arc<anyhow::Error>> =
-        request_cache
-            .try_get_with(scrape_req.url, scraper::scrape(config, &url))
-            .await;
-    let res = match res {
-        Ok(r) => r,
-        Err(e) => {
-            let e = ScrapeResult::from_err(e);
-            return Ok(axum::response::Response::builder()
-                .status(axum::http::StatusCode::OK)
-                .header(axum::http::header::CONTENT_TYPE, "application/json")
-                .body(serde_json::to_string(&e)?)?);
-        }
-    };
-    let res = match res {
-        Some(res) => res,
-        None => {
-            return Ok(axum::response::Response::builder()
-                .status(axum::http::StatusCode::OK)
-                .header(axum::http::header::CONTENT_TYPE, "application/json")
-                .body(serde_json::to_string(&ScrapeResult::Err(
-                    "URL invalid".to_string().into(),
-                ))?)?);
-        }
-    };
-    Ok(axum::response::Response::builder()
-        .status(axum::http::StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/json")
-        .body(serde_json::to_string(&res)?)?)
-}
+mod web;
 
 #[derive(Envconfig, Clone, securefmt::Debug)]
 pub struct Configuration {
@@ -166,12 +80,9 @@ impl State {
                     }
                 }
                 allowed || self.parsed_allowed_origins.is_empty()
-            },
-            None => {
-                self.config.allow_empty_origin
             }
+            None => self.config.allow_empty_origin,
         }
-        
     }
 }
 
@@ -224,26 +135,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-async fn latency<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
-    let uri = req.uri().clone();
-    debug!("Incoming Request {}", uri);
-    let start = Instant::now();
-
-    let mut res = next.run(req).await;
-
-    let time_taken = start.elapsed();
-    let time_taken = format!("{:1.3}ms", time_taken.as_secs_f32() * 1000.0);
-
-    debug!("Request {} handled in {}", uri, time_taken);
-
-    res.headers_mut().append(
-        "x-time-taken",
-        axum::http::HeaderValue::from_str(&*time_taken).unwrap(),
-    );
-
-    res
-}
-
 async fn main_start() -> Result<()> {
     let config = Configuration::init_from_env();
     let config = match config {
@@ -256,19 +147,19 @@ async fn main_start() -> Result<()> {
     log::info!("log level is now {}", config.log_level);
     LOGGER.lock().unwrap().set_new_spec(
         flexi_logger::LogSpecification::builder()
-            .default(LevelFilter::Warn)
+            .default(LevelFilter::Info)
             .module("scraper", config.log_level)
             .build(),
     );
     let state = Arc::new(State::new(config.clone())?);
     let app = axum::Router::new()
-        .route("/images/scrape", get(scrape).post(scrape_post))
+        .route("/images/scrape", get(web::scrape).post(web::scrape_post))
         .layer(Extension(state.clone()))
         .layer(axum::middleware::from_fn(move |a, b| {
             let state = state.clone();
-            origin_check(a, state, b)
+            web::origin_check(a, state, b)
         }))
-        .layer(axum::middleware::from_fn(latency));
+        .layer(axum::middleware::from_fn(web::latency));
     axum::Server::bind(&config.bind_to)
         .serve(app.into_make_service())
         .await

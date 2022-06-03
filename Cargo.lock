@@ -1153,6 +1153,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9a9d19fa1e79b6215ff29b9d6880b706147f16e9b1dbb1e4e5947b5b02bc5e3"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1876,6 +1885,7 @@ dependencies = [
  "graphql_client",
  "hex",
  "ipnet",
+ "itertools 0.10.3",
  "kankyo",
  "lazy_static",
  "log",
@@ -2657,7 +2667,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc81b7fee47fd98274339fb25b3b6024f6850a9b9d25b6b4fd4f776a35a7abc5"
 dependencies = [
- "itertools",
+ "itertools 0.8.2",
  "visit_diff_derive",
  "void",
 ]
