@@ -12,7 +12,7 @@ use axum::{
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;
-use log::{info, trace, LevelFilter};
+use log::{info, trace, LevelFilter, debug};
 use std::sync::Mutex;
 
 use crate::scraper::ScrapeResult;
@@ -225,12 +225,16 @@ fn main() -> Result<()> {
 }
 
 async fn latency<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
+    let uri = req.uri().clone();
+    debug!("Incoming Request {}", uri);
     let start = Instant::now();
 
     let mut res = next.run(req).await;
 
     let time_taken = start.elapsed();
     let time_taken = format!("{:1.3}ms", time_taken.as_secs_f32() * 1000.0);
+
+    debug!("Request {} handled in {}", uri, time_taken);
 
     res.headers_mut().append(
         "x-time-taken",
@@ -258,13 +262,13 @@ async fn main_start() -> Result<()> {
     );
     let state = Arc::new(State::new(config.clone())?);
     let app = axum::Router::new()
+        .route("/images/scrape", get(scrape).post(scrape_post))
         .layer(Extension(state.clone()))
-        .layer(axum::middleware::from_fn(latency))
         .layer(axum::middleware::from_fn(move |a, b| {
             let state = state.clone();
             origin_check(a, state, b)
         }))
-        .route("/images/scrape", get(scrape).post(scrape_post));
+        .layer(axum::middleware::from_fn(latency));
     axum::Server::bind(&config.bind_to)
         .serve(app.into_make_service())
         .await
@@ -281,8 +285,8 @@ lazy_static! {
         Mutex::new(
             flexi_logger::Logger::with(
                 flexi_logger::LogSpecification::builder()
-                    .default(LevelFilter::Warn)
-                    .module("scraper", LevelFilter::Info)
+                    .default(LevelFilter::Debug)
+                    .module("scraper", LevelFilter::Debug)
                     .build(),
             )
             .start()
