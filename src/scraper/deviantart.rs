@@ -257,20 +257,17 @@ mod test {
         };
         {
             // remove token from URL
-            match &mut scrape {
-                ScrapeResult::Ok(result) => {
-                    for image in result.images.iter_mut() {
-                        let fixup = url_to_str(&image.url);
-                        let mut fixup = url::Url::from_str(&fixup)?;
-                        fixup.query_pairs_mut().clear();
-                        (*(image)).url = from_url(fixup);
-                        let fixup = url_to_str(&image.camo_url);
-                        let mut fixup = url::Url::from_str(&fixup)?;
-                        fixup.query_pairs_mut().clear();
-                        (*(image)).camo_url = from_url(fixup);
-                    }
+            if let ScrapeResult::Ok(result) = &mut scrape {
+                for image in result.images.iter_mut() {
+                    let fixup = url_to_str(&image.url);
+                    let mut fixup = url::Url::from_str(&fixup)?;
+                    fixup.query_pairs_mut().clear();
+                    (*(image)).url = from_url(fixup);
+                    let fixup = url_to_str(&image.camo_url);
+                    let mut fixup = url::Url::from_str(&fixup)?;
+                    fixup.query_pairs_mut().clear();
+                    (*(image)).camo_url = from_url(fixup);
                 }
-                _ => (),
             }
         }
         let expected_result = ScrapeResult::Ok(ScrapeResultData{

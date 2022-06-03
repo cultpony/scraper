@@ -1,7 +1,7 @@
 use anyhow::Result;
 use axum::{
     extract::Query,
-    http::{self, header, Request},
+    http::{self, Request},
     middleware::Next,
     response::{self, IntoResponse},
     Extension, Json,

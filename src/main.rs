@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::{routing::get, Extension, Json};
+use axum::{routing::get, Extension};
 use envconfig::Envconfig;
 use flexi_logger::LoggerHandle;
 use lazy_static::lazy_static;

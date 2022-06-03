@@ -320,7 +320,7 @@ mod test {
         let url = r#"https://tcn1205.tumblr.com/post/186904081532/in-wonderland"#;
         let config = Configuration::default();
         let api_key = config.tumblr_api_key.clone().unwrap_or_default();
-        if config.tumblr_api_key.is_none() && api_key.trim().len() == 0 {
+        if config.tumblr_api_key.is_none() && api_key.trim().is_empty() {
             warn!("Tumblr API key not configured, skipping");
             return Ok(());
         }
@@ -356,7 +356,7 @@ mod test {
         let url = r#"https://witchtaunter.tumblr.com/post/182898769998/yes-this-is-horse"#;
         let config = Configuration::default();
         let api_key = config.tumblr_api_key.clone().unwrap_or_default();
-        if config.tumblr_api_key.is_none() && api_key.trim().len() == 0 {
+        if config.tumblr_api_key.is_none() && api_key.trim().is_empty() {
             warn!("Tumblr API key not configured, skipping");
             return Ok(());
         }
