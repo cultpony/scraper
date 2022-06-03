@@ -236,8 +236,8 @@ mod test {
                 }
                 scrape.images = Vec::new();
             }
-            ScrapeResult::Err(e) => assert!(false, "error in scrape: {:?}", e.errors),
-            ScrapeResult::None => assert!(false, "no data in scrape"),
+            ScrapeResult::Err(e) => panic!("error in scrape: {:?}", e.errors),
+            ScrapeResult::None => panic!("no data in scrape"),
         }
         visit_diff::assert_eq_diff!(ScrapeResult::Ok(ScrapeResultData{
             source_url: Some(from_url(parsed)),

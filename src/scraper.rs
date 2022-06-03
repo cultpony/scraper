@@ -9,6 +9,7 @@ mod twitter;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use itertools::Itertools;
 use log::debug;
 use serde::{Deserialize, Serialize};
 #[cfg(test)]
@@ -148,45 +149,115 @@ pub fn client_with_redir_limit(
     Ok(client.build()?)
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+enum Scraper {
+    Twitter,
+    Nitter,
+    Tumblr,
+    DeviantArt,
+    Philomena,
+    Buzzly,
+    Raw,
+}
+
+impl Scraper {
+    async fn get_scraper(config: &Configuration, url: &url::Url) -> Result<Option<Self>> {
+        let (r0, r1, r2, r3, r4, r5, r6) = tokio::try_join!(
+            async {
+                twitter::is_twitter(url)
+                    .await
+                    .map(|mat| if mat { Some(Self::Twitter) } else { None })
+            },
+            async {
+                nitter::is_nitter(url)
+                    .await
+                    .map(|mat| if mat { Some(Self::Nitter) } else { None })
+            },
+            async {
+                tumblr::is_tumblr(url)
+                    .await
+                    .map(|mat| if mat { Some(Self::Tumblr) } else { None })
+            },
+            async {
+                deviantart::is_deviantart(url).await.map(|mat| {
+                    if mat {
+                        Some(Self::DeviantArt)
+                    } else {
+                        None
+                    }
+                })
+            },
+            async {
+                philomena::is_philomena(url).await.map(|mat| {
+                    if mat {
+                        Some(Self::Philomena)
+                    } else {
+                        None
+                    }
+                })
+            },
+            async {
+                buzzly::is_buzzlyart(url)
+                    .await
+                    .map(|mat| if mat { Some(Self::Buzzly) } else { None })
+            },
+            async {
+                raw::is_raw(url, config)
+                    .await
+                    .map(|mat| if mat { Some(Self::Raw) } else { None })
+            },
+        )?;
+        let res = vec![r0, r1, r2, r3, r4, r5, r6];
+        let res: Vec<Scraper> = res.into_iter().flatten().collect_vec();
+        Ok(if res.is_empty() {
+            None
+        } else if res.len() == 1 {
+            Some(res[0])
+        } else if res.len() > 1 {
+            let mut res = res;
+            res.sort();
+            Some(res[0])
+        } else {
+            unreachable!("res must be empty but is {:?}", res);
+        })
+    }
+
+    async fn execute_scrape(
+        self,
+        config: &Configuration,
+        url: &url::Url,
+    ) -> Result<Option<ScrapeResult>> {
+        match self {
+            Scraper::Twitter => Ok(twitter::twitter_scrape(config, url)
+                .await
+                .context("Twitter parser failed")?),
+            Scraper::Nitter => Ok(nitter::nitter_scrape(config, url)
+                .await
+                .context("Nitter parser failed")?),
+            Scraper::Tumblr => Ok(tumblr::tumblr_scrape(config, url)
+                .await
+                .context("Tumblr parser failed")?),
+            Scraper::DeviantArt => Ok(deviantart::deviantart_scrape(config, url)
+                .await
+                .context("DeviantArt parser failed")?),
+            Scraper::Philomena => Ok(philomena::philomena_scrape(config, url)
+                .await
+                .context("Philomena parser failed")?),
+            Scraper::Buzzly => Ok(buzzly::buzzlyart_scrape(config, url)
+                .await
+                .context("Buzzly parser failed")?),
+            Scraper::Raw => Ok(raw::raw_scrape(config, url)
+                .await
+                .context("Raw parser failed")?),
+        }
+    }
+}
+
 pub async fn scrape(config: &Configuration, url: &str) -> Result<Option<ScrapeResult>> {
     use std::str::FromStr;
     let url = url::Url::from_str(url).context("could not parse URL for scraper")?;
-    let is_twitter = twitter::is_twitter(&url);
-    let is_nitter = nitter::is_nitter(&url);
-    let is_tumblr = tumblr::is_tumblr(&url);
-    let is_deviantart = deviantart::is_deviantart(&url);
-    let is_philomena = philomena::is_philomena(&url);
-    let is_raw = raw::is_raw(&url, config);
-    let is_buzzly = buzzly::is_buzzlyart(&url);
-    if is_twitter.await.unwrap_or(false) {
-        Ok(twitter::twitter_scrape(config, &url)
-            .await
-            .context("Twitter parser failed")?)
-    } else if is_deviantart.await.unwrap_or(false) {
-        Ok(deviantart::deviantart_scrape(config, &url)
-            .await
-            .context("DeviantArt parser failed")?)
-    } else if is_tumblr.await.unwrap_or(false) {
-        Ok(tumblr::tumblr_scrape(config, &url)
-            .await
-            .context("Tumblr parser failed")?)
-    } else if is_raw.await.unwrap_or(false) {
-        Ok(raw::raw_scrape(config, &url)
-            .await
-            .context("Raw parser failed")?)
-    } else if is_nitter.await.unwrap_or(false) {
-        Ok(nitter::nitter_scrape(config, &url)
-            .await
-            .context("Nitter parser failed")?)
-    } else if is_philomena.await.unwrap_or(false) {
-        Ok(philomena::philomena_scrape(config, &url)
-            .await
-            .context("Philomena parser failed")?)
-    } else if is_buzzly.await.unwrap_or(false) {
-        Ok(buzzly::buzzlyart_scrape(config, &url)
-            .await
-            .context("Buzzly parser failed")?)
-    } else {
-        Ok(None)
+    match Scraper::get_scraper(config, &url).await? {
+        Some(scraper) => scraper.execute_scrape(config, &url).await,
+        None => Ok(None),
     }
 }
